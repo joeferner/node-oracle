@@ -31,5 +31,5 @@ def configure(conf):
 def build(bld):
   obj = bld.new_task_gen("cxx", "shlib", "node_addon")
   obj.target = "oracle_bindings"
-  obj.source = "src/connection.cpp src/outParam.cpp src/oracle_bindings.cpp"
+  obj.source = "src/connection.cpp src/outParam.cpp src/executeBaton.cpp src/oracle_bindings.cpp"
   obj.includes = "src/"

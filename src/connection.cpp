@@ -5,35 +5,6 @@
 
 Persistent<FunctionTemplate> Connection::constructorTemplate;
 
-#define VALUE_TYPE_OUTPUT 1
-#define VALUE_TYPE_STRING 2
-
-struct column_t {
-  int type;
-  std::string name;
-};
-
-struct row_t {
-  std::vector<void*> values;
-};
-
-struct value_t {
-  int type;
-  void* value;
-};
-
-struct execute_baton_t {
-  Connection *connection;
-  Persistent<Function> callback;
-  std::vector<value_t*> values;
-  std::string sql;
-  std::vector<column_t*> columns;
-  std::vector<row_t*>* rows;
-  std::string* error;
-  int updateCount;
-  int* returnParam;
-};
-
 void Connection::Init(Handle<Object> target) {
   HandleScope scope;
 
@@ -72,32 +43,15 @@ Handle<Value> Connection::Execute(const Arguments& args) {
 
   String::AsciiValue sqlVal(sql);
 
-  execute_baton_t* baton = new execute_baton_t();
-  baton->connection = connection;
-  baton->sql = *sqlVal;
-  baton->callback = Persistent<Function>::New(callback);
-  baton->returnParam = NULL;
-
-  for(uint32_t i=0; i<values->Length(); i++) {
-    Local<Value> val = values->Get(i);
-
-    value_t *value = new value_t();
-    if(val->IsString()) {
-      String::AsciiValue asciiVal(val);
-      value->type = VALUE_TYPE_STRING;
-      value->value = new std::string(*asciiVal);
-      baton->values.push_back(value);
-    } else if(val->IsObject() && val->ToObject()->FindInstanceInPrototypeChain(OutParam::constructorTemplate) != Null()) {
-      value->type = VALUE_TYPE_OUTPUT;
-      value->value = NULL;
-      baton->values.push_back(value);
-    } else {
-      Handle<Value> argv[2];
-      argv[0] = Exception::Error(String::New("unhandled value type"));
-      argv[1] = Undefined();
-      baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
-      return Undefined();
-    }
+  ExecuteBaton* baton;
+  try {
+    baton = new ExecuteBaton(connection, *sqlVal, &values, &callback);
+  } catch(NodeOracleException &ex) {
+    Handle<Value> argv[2];
+    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
+    argv[1] = Undefined();
+    callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    return Undefined();
   }
 
   eio_custom(EIO_Execute, EIO_PRI_DEFAULT, EIO_AfterExecute, baton);
@@ -122,8 +76,75 @@ void Connection::closeConnection() {
   }
 }
 
+int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<value_t*> &values) {
+  uint32_t index = 1;
+  int outputParam = -1;
+  for (std::vector<value_t*>::iterator iterator = values.begin(), end = values.end(); iterator != end; ++iterator, index++) {
+    value_t* val = *iterator;
+    switch(val->type) {
+      case VALUE_TYPE_STRING:
+        stmt->setString(index, *((std::string*)val->value));
+        break;
+      case VALUE_TYPE_OUTPUT:
+        stmt->registerOutParam(index, oracle::occi::OCCIINT);
+        outputParam = index;
+        break;
+      default:
+        throw NodeOracleException("Unhandled value type");
+    }
+  }
+  return outputParam;
+}
+
+void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns) {
+  std::vector<oracle::occi::MetaData> metadata = rs->getColumnListMetaData();
+  for (std::vector<oracle::occi::MetaData>::iterator iterator = metadata.begin(), end = metadata.end(); iterator != end; ++iterator) {
+    oracle::occi::MetaData metadata = *iterator;
+    column_t* col = new column_t();
+    col->name = metadata.getString(oracle::occi::MetaData::ATTR_NAME);
+    int type = metadata.getInt(oracle::occi::MetaData::ATTR_DATA_TYPE);
+    switch(type) {
+      case oracle::occi::OCCI_TYPECODE_NUMBER:
+        col->type = VALUE_TYPE_NUMBER;
+        break;
+      case oracle::occi::OCCI_TYPECODE_VARCHAR2:
+      case oracle::occi::OCCI_TYPECODE_VARCHAR:
+        col->type = VALUE_TYPE_STRING;
+        break;
+      default:
+        std::ostringstream message;
+        message << "Unhandled oracle data type: " << type;
+        throw NodeOracleException(message.str());
+        break;
+    }
+    columns.push_back(col);
+  }
+}
+
+row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns) {
+  row_t* row = new row_t();
+  int colIndex = 1;
+  for (std::vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
+    column_t* col = *iterator;
+    switch(col->type) {
+      case VALUE_TYPE_STRING:
+        row->values.push_back(new std::string(rs->getString(colIndex)));
+        break;
+      case VALUE_TYPE_NUMBER:
+        row->values.push_back(new oracle::occi::Number(rs->getNumber(colIndex)));
+        break;
+      default:
+        std::ostringstream message;
+        message << "Unhandled type: " << col->type;
+        throw NodeOracleException(message.str());
+        break;
+    }
+  }
+  return row;
+}
+
 void Connection::EIO_Execute(eio_req* req) {
-  execute_baton_t* baton = static_cast<execute_baton_t*>(req->data);
+  ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
 
   baton->rows = NULL;
   baton->error = NULL;
@@ -133,23 +154,7 @@ void Connection::EIO_Execute(eio_req* req) {
   try {
     //printf("%s\n", baton->sql.c_str());
     stmt = baton->connection->m_connection->createStatement(baton->sql);
-    uint32_t index = 1;
-    int outputParam = -1;
-    for (std::vector<value_t*>::iterator iterator = baton->values.begin(), end = baton->values.end(); iterator != end; ++iterator, index++) {
-      value_t* val = *iterator;
-      switch(val->type) {
-        case VALUE_TYPE_STRING:
-          stmt->setString(index, *((std::string*)val->value));
-          break;
-        case VALUE_TYPE_OUTPUT:
-          stmt->registerOutParam(index, oracle::occi::OCCIINT);
-          outputParam = index;
-          break;
-        default:
-          baton->error = new std::string("unhandled value type");
-          goto error;
-      }
-    }
+    int outputParam = SetValuesOnStatement(stmt, baton->values);
 
     int status = stmt->execute();
     if(status == oracle::occi::Statement::UPDATE_COUNT_AVAILABLE) {
@@ -160,42 +165,20 @@ void Connection::EIO_Execute(eio_req* req) {
       }
     } else {
       rs = stmt->executeQuery();
-      std::vector<oracle::occi::MetaData> columns = rs->getColumnListMetaData();
-      for (std::vector<oracle::occi::MetaData>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator) {
-        oracle::occi::MetaData metadata = *iterator;
-        column_t* col = new column_t();
-        col->name = metadata.getString(oracle::occi::MetaData::ATTR_NAME);
-        int type = metadata.getInt(oracle::occi::MetaData::ATTR_DATA_TYPE);
-        switch(type) {
-          default:
-            col->type = VALUE_TYPE_STRING;
-            break;
-        }
-        baton->columns.push_back(col);
-      }
-
+      CreateColumnsFromResultSet(rs, baton->columns);
       baton->rows = new std::vector<row_t*>();
 
       while(rs->next()) {
-        row_t* row = new row_t();
-        int colIndex = 1;
-        for (std::vector<column_t*>::iterator iterator = baton->columns.begin(), end = baton->columns.end(); iterator != end; ++iterator, colIndex++) {
-          column_t* col = *iterator;
-          switch(col->type) {
-            default:
-            case VALUE_TYPE_STRING:
-              row->values.push_back(new std::string(rs->getString(colIndex)));
-              break;
-          }
-        }
+        row_t* row = CreateRowFromCurrentResultSetRow(rs, baton->columns);
         baton->rows->push_back(row);
       }
     }
   } catch(oracle::occi::SQLException &ex) {
     baton->error = new std::string(ex.getMessage());
+  } catch(NodeOracleException &ex) {
+    baton->error = new std::string(ex.getMessage());
   }
 
-error:
   if(stmt && rs) {
     stmt->closeResultSet(rs);
   }
@@ -205,7 +188,7 @@ error:
 }
 
 int Connection::EIO_AfterExecute(eio_req* req) {
-  execute_baton_t* baton = static_cast<execute_baton_t*>(req->data);
+  ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
   ev_unref(EV_DEFAULT_UC);
   baton->connection->Unref();
 
@@ -236,9 +219,7 @@ int Connection::EIO_AfterExecute(eio_req* req) {
           }
         }
         rows->Set(index, obj);
-        delete currentRow;
       }
-      delete baton->rows;
       argv[1] = rows;
     } else {
       Local<Object> obj = Object::New();
@@ -251,23 +232,6 @@ int Connection::EIO_AfterExecute(eio_req* req) {
     }
   }
   baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
-
-  baton->callback.Dispose();
-
-  for (std::vector<column_t*>::iterator iterator = baton->columns.begin(), end = baton->columns.end(); iterator != end; ++iterator) {
-    column_t* col = *iterator;
-    delete col;
-  }
-
-  for (std::vector<value_t*>::iterator iterator = baton->values.begin(), end = baton->values.end(); iterator != end; ++iterator) {
-    value_t* val = *iterator;
-    if(val->type == VALUE_TYPE_STRING) {
-      delete (std::string*)val->value;
-    }
-    delete val;
-  }
-
-  if(baton->error) delete baton->error;
 
   delete baton;
   return 0;

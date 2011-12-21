@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <occi.h>
 #include "utils.h"
+#include "nodeOracleException.h"
+#include "executeBaton.h"
 
 using namespace node;
 using namespace v8;
@@ -28,6 +30,10 @@ public:
   void setConnection(oracle::occi::Environment* environment, oracle::occi::Connection* connection);
 
 private:
+  static int SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<value_t*> &values);
+  static void CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns);
+  static row_t* CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns);
+
   oracle::occi::Connection* m_connection;
   oracle::occi::Environment* m_environment;
 };
