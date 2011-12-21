@@ -14,9 +14,11 @@ class Connection;
 #include <stdlib.h>
 
 enum {
+  VALUE_TYPE_NULL,
   VALUE_TYPE_OUTPUT,
   VALUE_TYPE_STRING,
-  VALUE_TYPE_NUMBER
+  VALUE_TYPE_NUMBER,
+  VALUE_TYPE_DATE
 };
 
 struct column_t {

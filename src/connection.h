@@ -28,6 +28,7 @@ public:
   ~Connection();
 
   void setConnection(oracle::occi::Environment* environment, oracle::occi::Connection* connection);
+  oracle::occi::Environment* getEnvironment() { return m_environment; }
 
 private:
   static int SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<value_t*> &values);

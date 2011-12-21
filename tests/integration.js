@@ -15,6 +15,26 @@
        SELECT person_seq.nextval INTO :new.id FROM dual;
      END;
    /
+   CREATE TABLE datatype_test (
+    id INTEGER PRIMARY KEY,
+    tvarchar2 VARCHAR2(255),
+    tnvarchar2 NVARCHAR2(255),
+    tchar CHAR(255),
+    tnchar NCHAR(255),
+    tnumber NUMBER(10,5),
+    tdate DATE,
+    ttimestamp TIMESTAMP,
+    tclob CLOB,
+    tnclob NCLOB,
+    tblob BLOB,
+    tbfile BFILE,
+    txmltype XMLType);
+   CREATE SEQUENCE datatype_test_seq START WITH 1 INCREMENT BY 1 NOMAXVALUE;
+   CREATE TRIGGER datatype_test_pk_trigger BEFORE INSERT ON datatype_test FOR EACH row
+     BEGIN
+       SELECT datatype_test_seq.nextval INTO :new.id FROM dual;
+     END;
+   /
 */
 
 var nodeunit = require("nodeunit");
@@ -32,8 +52,11 @@ exports['IntegrationTest'] = nodeunit.testCase({
       self.connection = connection;
       self.connection.execute("DELETE FROM person", [], function(err, results) {
         if(err) { callback(err); return; }
-        //console.log("rows deleted: ", results);
-        callback();
+        self.connection.execute("DELETE FROM datatype_test", [], function(err, results) {
+          if(err) { callback(err); return; }
+          //console.log("rows deleted: ", results);
+          callback();
+        });
       });
     });
   },
@@ -69,5 +92,34 @@ exports['IntegrationTest'] = nodeunit.testCase({
       test.ok(results.returnParam > 0);
       test.done();
     });
+  },
+
+  "datatypes": function(test) {
+    var self = this;
+    var date1 = new Date(2011, 10, 30, 1, 2, 3);
+    var date2 = new Date(2011, 11, 1, 1, 2, 3);
+    self.connection.execute(
+      "INSERT INTO datatype_test "
+        + "(tvarchar2, tnvarchar2, tchar, tnchar, tnumber, tdate, ttimestamp, tclob, tnclob, tblob, txmltype) VALUES "
+        + "(:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11) RETURNING id INTO :12",
+      [
+        "tvarchar2 value",
+        "tnvarchar2 value",
+        "tchar value",
+        "tnchar value",
+        42.5,
+        date1,
+        date2,
+        "tclob value",
+        "tnclob value",
+        null, //new Buffer("tblob value"),
+        "<xmlData></xmlData>",
+        new oracle.OutParam()
+      ],
+      function(err, results) {
+        if(err) { console.error(err); return; }
+        test.ok(results.returnParam > 0);
+        test.done();
+      });
   }
 });

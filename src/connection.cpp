@@ -82,15 +82,24 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
   for (std::vector<value_t*>::iterator iterator = values.begin(), end = values.end(); iterator != end; ++iterator, index++) {
     value_t* val = *iterator;
     switch(val->type) {
+      case VALUE_TYPE_NULL:
+        stmt->setNull(index, oracle::occi::OCCISTRING);
+        break;
       case VALUE_TYPE_STRING:
         stmt->setString(index, *((std::string*)val->value));
+        break;
+      case VALUE_TYPE_NUMBER:
+        stmt->setNumber(index, *((oracle::occi::Number*)val->value));
+        break;
+      case VALUE_TYPE_DATE:
+        stmt->setDate(index, *((oracle::occi::Date*)val->value));
         break;
       case VALUE_TYPE_OUTPUT:
         stmt->registerOutParam(index, oracle::occi::OCCIINT);
         outputParam = index;
         break;
       default:
-        throw NodeOracleException("Unhandled value type");
+        throw NodeOracleException("SetValuesOnStatement: Unhandled value type");
     }
   }
   return outputParam;
