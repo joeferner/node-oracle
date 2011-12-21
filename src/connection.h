@@ -33,6 +33,8 @@ private:
   static int SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<value_t*> &values);
   static void CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns);
   static row_t* CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns);
+  static Local<Array> CreateV8ArrayFromRows(ExecuteBaton* baton);
+  static Local<Object> CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* currentRow);
 
   oracle::occi::Connection* m_connection;
   oracle::occi::Environment* m_environment;

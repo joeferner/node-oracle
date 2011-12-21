@@ -187,51 +187,80 @@ void Connection::EIO_Execute(eio_req* req) {
   }
 }
 
+Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* currentRow) {
+  Local<Object> obj = Object::New();
+  uint32_t colIndex = 0;
+  for (std::vector<column_t*>::iterator iterator = baton->columns.begin(), end = baton->columns.end(); iterator != end; ++iterator, colIndex++) {
+    column_t* col = *iterator;
+    void* val = currentRow->values[colIndex];
+    switch(col->type) {
+      case VALUE_TYPE_STRING:
+        {
+          std::string* v = (std::string*)val;
+          obj->Set(String::New(col->name.c_str()), String::New(v->c_str()));
+          delete v;
+        }
+        break;
+      case VALUE_TYPE_NUMBER:
+        {
+          oracle::occi::Number* v = (oracle::occi::Number*)val;
+          obj->Set(String::New(col->name.c_str()), Number::New((double)(*v)));
+          delete v;
+        }
+        break;
+      default:
+        std::ostringstream message;
+        message << "Unhandled type: " << col->type;
+        throw NodeOracleException(message.str());
+        break;
+    }
+  }
+  return obj;
+}
+
+Local<Array> Connection::CreateV8ArrayFromRows(ExecuteBaton* baton) {
+  size_t totalRows = baton->rows->size();
+  Local<Array> rows = Array::New(totalRows);
+  uint32_t index = 0;
+  for (std::vector<row_t*>::iterator iterator = baton->rows->begin(), end = baton->rows->end(); iterator != end; ++iterator, index++) {
+    row_t* currentRow = *iterator;
+    Local<Object> obj = CreateV8ObjectFromRow(baton, currentRow);
+    rows->Set(index, obj);
+  }
+  return rows;
+}
+
 int Connection::EIO_AfterExecute(eio_req* req) {
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
   ev_unref(EV_DEFAULT_UC);
   baton->connection->Unref();
 
-  Handle<Value> argv[2];
-  if(baton->error) {
-    argv[0] = Exception::Error(String::New(baton->error->c_str()));
-    argv[1] = Undefined();
-  } else {
-    argv[0] = Undefined();
-
-    if(baton->rows) {
-      size_t totalRows = baton->rows->size();
-      Local<Array> rows = Array::New(totalRows);
-      uint32_t index = 0;
-      for (std::vector<row_t*>::iterator iterator = baton->rows->begin(), end = baton->rows->end(); iterator != end; ++iterator, index++) {
-        row_t* currentRow = *iterator;
-        Local<Object> obj = Object::New();
-        uint32_t colIndex = 0;
-        for (std::vector<column_t*>::iterator iterator = baton->columns.begin(), end = baton->columns.end(); iterator != end; ++iterator, colIndex++) {
-          column_t* col = *iterator;
-          void* val = currentRow->values[colIndex];
-          switch(col->type) {
-            case VALUE_TYPE_STRING:
-              std::string* v = (std::string*)val;
-              obj->Set(String::New(col->name.c_str()), String::New(v->c_str()));
-              delete v;
-              break;
-          }
-        }
-        rows->Set(index, obj);
-      }
-      argv[1] = rows;
+  try {
+    Handle<Value> argv[2];
+    if(baton->error) {
+      argv[0] = Exception::Error(String::New(baton->error->c_str()));
+      argv[1] = Undefined();
     } else {
-      Local<Object> obj = Object::New();
-      obj->Set(String::New("updateCount"), Integer::New(baton->updateCount));
-      if(baton->returnParam) {
-        obj->Set(String::New("returnParam"), Integer::New(*baton->returnParam));
-        delete baton->returnParam;
+      argv[0] = Undefined();
+      if(baton->rows) {
+        argv[1] = CreateV8ArrayFromRows(baton);
+      } else {
+        Local<Object> obj = Object::New();
+        obj->Set(String::New("updateCount"), Integer::New(baton->updateCount));
+        if(baton->returnParam) {
+          obj->Set(String::New("returnParam"), Integer::New(*baton->returnParam));
+          delete baton->returnParam;
+        }
+        argv[1] = obj;
       }
-      argv[1] = obj;
     }
+    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+  } catch(NodeOracleException &ex) {
+    Handle<Value> argv[2];
+    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
+    argv[1] = Undefined();
+    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
   }
-  baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
 
   delete baton;
   return 0;
