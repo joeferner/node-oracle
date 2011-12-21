@@ -2,7 +2,6 @@
 /*
  tests-settings.json:
    {
-    "driver": "db-oracle",
     "hostname": "localhost",
     "user": "test",
     "password": "test"

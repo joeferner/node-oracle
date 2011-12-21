@@ -2,10 +2,6 @@ import Options, Utils
 from os import unlink, symlink, chdir, environ
 from os.path import exists
 
-#srcdir = "."
-#blddir = "build"
-#VERSION = "0.2.2"
-
 def set_options(opt):
   opt.tool_options("compiler_cxx")
 
@@ -20,15 +16,15 @@ def configure(conf):
   conf.env.append_unique('CXXFLAGS', ['-D_FILE_OFFSET_BITS=64'])
   conf.env.append_unique('CXXFLAGS', ['-D_LARGEFILE_SOURCE'])
 
-  oci_include = environ.get("OCI_INCLUDE_DIR", "/usr/include/oracle/11.2/client")
+  oci_include = environ.get("OCI_INCLUDE_DIR", "/usr/include/oracle/10.2.0.5/client/")
   if oci_include:
       conf.env.append_unique('CXXFLAGS', [ '-I' + oci_include ])
 
-  oci_lib = environ.get("OCI_LIB_DIR", "/usr/lib/oracle/11.2/client/lib")
+  oci_lib = environ.get("OCI_LIB_DIR", "/usr/lib/oracle/10.2.0.5/client/lib/")
   if oci_lib:
       conf.env.append_unique('LINKFLAGS', [ '-L' + oci_lib ])
 
-  conf.env.append_unique('LINKFLAGS', ['-locci', '-lclntsh', '-lnnz11'])
+  conf.env.append_unique('LINKFLAGS', ['-locci', '-lclntsh', '-lnnz10'])
   conf.check(header_name="occi.h", errmsg="Missing include files for OCI", mandatory=True)
   conf.check_cxx(lib="occi", errmsg="Missing libocci", mandatory=True)
 
