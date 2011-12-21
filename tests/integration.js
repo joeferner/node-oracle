@@ -119,7 +119,14 @@ exports['IntegrationTest'] = nodeunit.testCase({
       function(err, results) {
         if(err) { console.error(err); return; }
         test.ok(results.returnParam > 0);
-        test.done();
+
+        self.connection.execute("SELECT * FROM datatype_test", [], function(err, results) {
+          if(err) { console.error(err); return; }
+          console.log(results);
+          test.equal(results.length, 1);
+          test.equal(results[0]['NAME'], "Bill O'Neil");
+          test.done();
+        });
       });
   }
 });
