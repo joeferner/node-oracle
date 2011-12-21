@@ -18,14 +18,10 @@
  * Install Oracle Express (Ubuntu)
 
 ```bash
-sudo dpkg -i oracle-xe_10.2.0.1-1.0_i386.deb
+sudo dpkg -i oracle-xe_11.2.0.3.0-1.0_i386.deb
 sudo apt-get install alien
-sudo alien oracle-instantclient-basiclite-10.2.0.5-1.i386.rpm 
-sudo alien oracle-instantclient-devel-10.2.0.5-1.i386.rpm
-sudo alien oracle-instantclient-sqlplus-10.2.0.5-1.i386.rpm
-sudo dpkg -i oracle-instantclient-basiclite_10.2.0.5-1.i386.deb
-sudo dpkg -i oracle-instantclient-devel_10.2.0.5-1.i386.deb
-sudo dpkg -i oracle-instantclient-sqlplus_10.2.0.5-1.i386.deb
+sudo alien oracle-instantclient11.2-*
+sudo dpkg -i oracle-instantclient11.2-*.deb
 sudo /etc/init.d/oracle-xe configure
 ```
 
@@ -33,13 +29,13 @@ sudo /etc/init.d/oracle-xe configure
  * Create a user called "test" with password "test" and give all accesses.
  
 ```bash
-sudo vi /etc/ld.so.conf.d/oracle.conf -- add this line /usr/lib/oracle/10.2.0.5/client/lib/
+sudo vi /etc/ld.so.conf.d/oracle.conf -- add this line /usr/lib/oracle/11.2/client/lib/
 sudo ldconfig
 
 export ORACLE_SID=test
-export ORACLE_HOME=/usr/lib/oracle/xe/app/oracle/product/10.2.0/server
-export OCI_INCLUDE_DIR=/usr/include/oracle/10.2.0.5/client/
-export OCI_LIB_DIR=/usr/lib/oracle/10.2.0.5/client/lib/
+export ORACLE_HOME=/usr/lib/oracle/xe/app/oracle/product/11.2/server
+export OCI_INCLUDE_DIR=/usr/include/oracle/11.2/client/
+export OCI_LIB_DIR=/usr/lib/oracle/11.2/client/lib/
 sqlplus test@XE
 ```
 
