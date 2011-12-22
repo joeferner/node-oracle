@@ -134,5 +134,46 @@ exports['IntegrationTest'] = nodeunit.testCase({
           test.done();
         });
       });
+  },
+
+  "datatypes null": function(test) {
+    var self = this;
+    self.connection.execute(
+      "INSERT INTO datatype_test "
+        + "(tvarchar2, tnvarchar2, tchar, tnchar, tnumber, tdate, ttimestamp, tclob, tnclob, tblob) VALUES "
+        + "(:1, :2, :3, :4, :5, :6, :7, :8, :9, :10) RETURNING id INTO :11",
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        new oracle.OutParam()
+      ],
+      function(err, results) {
+        if(err) { console.error(err); return; }
+        test.ok(results.returnParam > 0);
+
+        self.connection.execute("SELECT * FROM datatype_test", [], function(err, results) {
+          if(err) { console.error(err); return; }
+          test.equal(results.length, 1);
+          test.equal(results[0]['TVARCHAR2'], null);
+          test.equal(results[0]['TNVARCHAR2'], null);
+          test.equal(results[0]['TCHAR'], null);
+          test.equal(results[0]['TNCHAR'], null);
+          test.equal(results[0]['TNUMBER'], null);
+          test.equal(results[0]['TDATE'], null);
+          test.equal(results[0]['TTIMESTAMP'], null);
+          test.equal(results[0]['TCLOB'], null);
+          test.equal(results[0]['TNCLOB'], null);
+          test.equal(results[0]['TBLOB'], null);
+          test.done();
+        });
+      });
   }
 });

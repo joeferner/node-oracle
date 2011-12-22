@@ -154,30 +154,34 @@ row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs,
   int colIndex = 1;
   for (std::vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
     column_t* col = *iterator;
-    switch(col->type) {
-      case VALUE_TYPE_STRING:
-        row->values.push_back(new std::string(rs->getString(colIndex)));
-        break;
-      case VALUE_TYPE_NUMBER:
-        row->values.push_back(new oracle::occi::Number(rs->getNumber(colIndex)));
-        break;
-      case VALUE_TYPE_DATE:
-        row->values.push_back(new oracle::occi::Date(rs->getDate(colIndex)));
-        break;
-      case VALUE_TYPE_TIMESTAMP:
-        row->values.push_back(new oracle::occi::Timestamp(rs->getTimestamp(colIndex)));
-        break;
-      case VALUE_TYPE_CLOB:
-        row->values.push_back(new oracle::occi::Clob(rs->getClob(colIndex)));
-        break;
-      case VALUE_TYPE_BLOB:
-        row->values.push_back(new oracle::occi::Blob(rs->getBlob(colIndex)));
-        break;
-      default:
-        std::ostringstream message;
-        message << "CreateRowFromCurrentResultSetRow: Unhandled type: " << col->type;
-        throw NodeOracleException(message.str());
-        break;
+    if(rs->isNull(colIndex)) {
+      row->values.push_back(NULL);
+    } else {
+      switch(col->type) {
+        case VALUE_TYPE_STRING:
+          row->values.push_back(new std::string(rs->getString(colIndex)));
+          break;
+        case VALUE_TYPE_NUMBER:
+          row->values.push_back(new oracle::occi::Number(rs->getNumber(colIndex)));
+          break;
+        case VALUE_TYPE_DATE:
+          row->values.push_back(new oracle::occi::Date(rs->getDate(colIndex)));
+          break;
+        case VALUE_TYPE_TIMESTAMP:
+          row->values.push_back(new oracle::occi::Timestamp(rs->getTimestamp(colIndex)));
+          break;
+        case VALUE_TYPE_CLOB:
+          row->values.push_back(new oracle::occi::Clob(rs->getClob(colIndex)));
+          break;
+        case VALUE_TYPE_BLOB:
+          row->values.push_back(new oracle::occi::Blob(rs->getBlob(colIndex)));
+          break;
+        default:
+          std::ostringstream message;
+          message << "CreateRowFromCurrentResultSetRow: Unhandled type: " << col->type;
+          throw NodeOracleException(message.str());
+          break;
+      }
     }
   }
   return row;
@@ -267,50 +271,54 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* curr
   for (std::vector<column_t*>::iterator iterator = baton->columns.begin(), end = baton->columns.end(); iterator != end; ++iterator, colIndex++) {
     column_t* col = *iterator;
     void* val = currentRow->values[colIndex];
-    switch(col->type) {
-      case VALUE_TYPE_STRING:
-        {
-          std::string* v = (std::string*)val;
-          obj->Set(String::New(col->name.c_str()), String::New(v->c_str()));
-          delete v;
-        }
-        break;
-      case VALUE_TYPE_NUMBER:
-        {
-          oracle::occi::Number* v = (oracle::occi::Number*)val;
-          obj->Set(String::New(col->name.c_str()), Number::New((double)(*v)));
-          delete v;
-        }
-        break;
-      case VALUE_TYPE_DATE:
-        {
-          oracle::occi::Date* v = (oracle::occi::Date*)val;
-          obj->Set(String::New(col->name.c_str()), OracleDateToV8Date(v));
-        }
-        break;
-      case VALUE_TYPE_TIMESTAMP:
-        {
-          oracle::occi::Timestamp* v = (oracle::occi::Timestamp*)val;
-          obj->Set(String::New(col->name.c_str()), OracleTimestampToV8Date(v));
-        }
-        break;
-      case VALUE_TYPE_CLOB:
-        {
-          oracle::occi::Clob* v = (oracle::occi::Clob*)val;
-          obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle clobs
-        }
-        break;
-      case VALUE_TYPE_BLOB:
-        {
-          oracle::occi::Blob* v = (oracle::occi::Blob*)val;
-          obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle blobs
-        }
-        break;
-      default:
-        std::ostringstream message;
-        message << "CreateV8ObjectFromRow: Unhandled type: " << col->type;
-        throw NodeOracleException(message.str());
-        break;
+    if(val == NULL) {
+      obj->Set(String::New(col->name.c_str()), Null());
+    } else {
+      switch(col->type) {
+        case VALUE_TYPE_STRING:
+          {
+            std::string* v = (std::string*)val;
+            obj->Set(String::New(col->name.c_str()), String::New(v->c_str()));
+            delete v;
+          }
+          break;
+        case VALUE_TYPE_NUMBER:
+          {
+            oracle::occi::Number* v = (oracle::occi::Number*)val;
+            obj->Set(String::New(col->name.c_str()), Number::New((double)(*v)));
+            delete v;
+          }
+          break;
+        case VALUE_TYPE_DATE:
+          {
+            oracle::occi::Date* v = (oracle::occi::Date*)val;
+            obj->Set(String::New(col->name.c_str()), OracleDateToV8Date(v));
+          }
+          break;
+        case VALUE_TYPE_TIMESTAMP:
+          {
+            oracle::occi::Timestamp* v = (oracle::occi::Timestamp*)val;
+            obj->Set(String::New(col->name.c_str()), OracleTimestampToV8Date(v));
+          }
+          break;
+        case VALUE_TYPE_CLOB:
+          {
+            oracle::occi::Clob* v = (oracle::occi::Clob*)val;
+            obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle clobs
+          }
+          break;
+        case VALUE_TYPE_BLOB:
+          {
+            oracle::occi::Blob* v = (oracle::occi::Blob*)val;
+            obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle blobs
+          }
+          break;
+        default:
+          std::ostringstream message;
+          message << "CreateV8ObjectFromRow: Unhandled type: " << col->type;
+          throw NodeOracleException(message.str());
+          break;
+      }
     }
   }
   return obj;
