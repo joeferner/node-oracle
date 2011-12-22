@@ -6,6 +6,28 @@
 
     npm install oracle
 
+# Example
+
+```javascript
+var oracle = require("oracle");
+
+oracle.connect({ "hostname": "localhost", "user": "test", "password": "test" }, function(err, connection) {
+  // selecting rows
+  connection.execute("SELECT * FROM person WHERE name = :1", ['bob smith'], function(err, results) {
+    // results will be an array of objects
+  });
+
+  // inserting with return value
+  connection.execute(
+    "INSERT INTO person (name) VALUES (:1) RETURNING id INTO :2",
+    ['joe ferner', new oracle.OutParam()],
+    function(err, results) {
+      // results.updateCount = 1
+      // results.returnParam = the id of the person just inserted
+    });
+});
+```
+
 # Develop
 
 ## Install Oracle/Oracle Express
@@ -27,7 +49,7 @@ sudo /etc/init.d/oracle-xe configure
 
  * Open http://localhost:9999/apex/ change 9999 to the port you configured. Log-in with "sys" and the password.
  * Create a user called "test" with password "test" and give all accesses.
- 
+
 ```bash
 sudo vi /etc/ld.so.conf.d/oracle.conf -- add this line /usr/lib/oracle/11.2/client/lib/
 sudo ldconfig
@@ -46,4 +68,3 @@ node-waf configure
 node-waf build
 nodeunit tests/*
 ```
-
