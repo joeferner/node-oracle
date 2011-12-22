@@ -114,11 +114,30 @@ void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::ve
     int type = metadata.getInt(oracle::occi::MetaData::ATTR_DATA_TYPE);
     switch(type) {
       case oracle::occi::OCCI_TYPECODE_NUMBER:
+      case oracle::occi::OCCI_TYPECODE_FLOAT:
+      case oracle::occi::OCCI_TYPECODE_DOUBLE:
+      case oracle::occi::OCCI_TYPECODE_REAL:
+      case oracle::occi::OCCI_TYPECODE_DECIMAL:
+      case oracle::occi::OCCI_TYPECODE_INTEGER:
+      case oracle::occi::OCCI_TYPECODE_SMALLINT:
         col->type = VALUE_TYPE_NUMBER;
         break;
       case oracle::occi::OCCI_TYPECODE_VARCHAR2:
       case oracle::occi::OCCI_TYPECODE_VARCHAR:
+      case oracle::occi::OCCI_TYPECODE_CHAR:
         col->type = VALUE_TYPE_STRING;
+        break;
+      case oracle::occi::OCCI_TYPECODE_CLOB:
+        col->type = VALUE_TYPE_CLOB;
+        break;
+      case oracle::occi::OCCI_TYPECODE_DATE:
+        col->type = VALUE_TYPE_DATE;
+        break;
+      case OCI_TYPECODE_TIMESTAMP:
+        col->type = VALUE_TYPE_TIMESTAMP;
+        break;
+      case oracle::occi::OCCI_TYPECODE_BLOB:
+        col->type = VALUE_TYPE_BLOB;
         break;
       default:
         std::ostringstream message;
@@ -142,9 +161,21 @@ row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs,
       case VALUE_TYPE_NUMBER:
         row->values.push_back(new oracle::occi::Number(rs->getNumber(colIndex)));
         break;
+      case VALUE_TYPE_DATE:
+        row->values.push_back(new oracle::occi::Date(rs->getDate(colIndex)));
+        break;
+      case VALUE_TYPE_TIMESTAMP:
+        row->values.push_back(new oracle::occi::Timestamp(rs->getTimestamp(colIndex)));
+        break;
+      case VALUE_TYPE_CLOB:
+        row->values.push_back(new oracle::occi::Clob(rs->getClob(colIndex)));
+        break;
+      case VALUE_TYPE_BLOB:
+        row->values.push_back(new oracle::occi::Blob(rs->getBlob(colIndex)));
+        break;
       default:
         std::ostringstream message;
-        message << "Unhandled type: " << col->type;
+        message << "CreateRowFromCurrentResultSetRow: Unhandled type: " << col->type;
         throw NodeOracleException(message.str());
         break;
     }
@@ -196,6 +227,40 @@ void Connection::EIO_Execute(eio_req* req) {
   }
 }
 
+void CallDateMethod(v8::Local<v8::Date> date, const char* methodName, int val) {
+  Handle<Value> args[1];
+  args[0] = Number::New(val);
+  Local<Function>::Cast(date->Get(String::New(methodName)))->Call(date, 1, args);
+}
+
+Local<Date> OracleDateToV8Date(oracle::occi::Date* d) {
+  int year;
+  unsigned int month, day, hour, min, sec;
+  d->getDate(year, month, day, hour, min, sec);
+  Local<Date> date = Date::Cast(*Date::New(0.0));
+  CallDateMethod(date, "setSeconds", sec);
+  CallDateMethod(date, "setMinutes", min);
+  CallDateMethod(date, "setHours", hour);
+  CallDateMethod(date, "setDate", day);
+  CallDateMethod(date, "setMonth", month - 1);
+  CallDateMethod(date, "setFullYear", year);
+  return date;
+}
+
+Local<Date> OracleTimestampToV8Date(oracle::occi::Timestamp* d) {
+  int year;
+  unsigned int month, day;
+  d->getDate(year, month, day);
+  Local<Date> date = Date::Cast(*Date::New(0.0));
+  CallDateMethod(date, "setSeconds", 0);
+  CallDateMethod(date, "setMinutes", 0);
+  CallDateMethod(date, "setHours", 0);
+  CallDateMethod(date, "setDate", day);
+  CallDateMethod(date, "setMonth", month - 1);
+  CallDateMethod(date, "setFullYear", year);
+  return date;
+}
+
 Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* currentRow) {
   Local<Object> obj = Object::New();
   uint32_t colIndex = 0;
@@ -217,9 +282,33 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* curr
           delete v;
         }
         break;
+      case VALUE_TYPE_DATE:
+        {
+          oracle::occi::Date* v = (oracle::occi::Date*)val;
+          obj->Set(String::New(col->name.c_str()), OracleDateToV8Date(v));
+        }
+        break;
+      case VALUE_TYPE_TIMESTAMP:
+        {
+          oracle::occi::Timestamp* v = (oracle::occi::Timestamp*)val;
+          obj->Set(String::New(col->name.c_str()), OracleTimestampToV8Date(v));
+        }
+        break;
+      case VALUE_TYPE_CLOB:
+        {
+          oracle::occi::Clob* v = (oracle::occi::Clob*)val;
+          obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle clobs
+        }
+        break;
+      case VALUE_TYPE_BLOB:
+        {
+          oracle::occi::Blob* v = (oracle::occi::Blob*)val;
+          obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle blobs
+        }
+        break;
       default:
         std::ostringstream message;
-        message << "Unhandled type: " << col->type;
+        message << "CreateV8ObjectFromRow: Unhandled type: " << col->type;
         throw NodeOracleException(message.str());
         break;
     }

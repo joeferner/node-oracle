@@ -6,6 +6,7 @@
 #include <node.h>
 #include <unistd.h>
 #include <occi.h>
+#include <oro.h>
 #include "utils.h"
 #include "nodeOracleException.h"
 #include "executeBaton.h"

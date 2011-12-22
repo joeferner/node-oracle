@@ -26,9 +26,7 @@
     ttimestamp TIMESTAMP,
     tclob CLOB,
     tnclob NCLOB,
-    tblob BLOB,
-    tbfile BFILE,
-    txmltype XMLType);
+    tblob BLOB);
    CREATE SEQUENCE datatype_test_seq START WITH 1 INCREMENT BY 1 NOMAXVALUE;
    CREATE TRIGGER datatype_test_pk_trigger BEFORE INSERT ON datatype_test FOR EACH row
      BEGIN
@@ -100,8 +98,8 @@ exports['IntegrationTest'] = nodeunit.testCase({
     var date2 = new Date(2011, 11, 1, 1, 2, 3);
     self.connection.execute(
       "INSERT INTO datatype_test "
-        + "(tvarchar2, tnvarchar2, tchar, tnchar, tnumber, tdate, ttimestamp, tclob, tnclob, tblob, txmltype) VALUES "
-        + "(:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11) RETURNING id INTO :12",
+        + "(tvarchar2, tnvarchar2, tchar, tnchar, tnumber, tdate, ttimestamp, tclob, tnclob, tblob) VALUES "
+        + "(:1, :2, :3, :4, :5, :6, :7, :8, :9, :10) RETURNING id INTO :11",
       [
         "tvarchar2 value",
         "tnvarchar2 value",
@@ -113,7 +111,6 @@ exports['IntegrationTest'] = nodeunit.testCase({
         "tclob value",
         "tnclob value",
         null, //new Buffer("tblob value"),
-        "<xmlData></xmlData>",
         new oracle.OutParam()
       ],
       function(err, results) {
@@ -122,9 +119,18 @@ exports['IntegrationTest'] = nodeunit.testCase({
 
         self.connection.execute("SELECT * FROM datatype_test", [], function(err, results) {
           if(err) { console.error(err); return; }
-          console.log(results);
           test.equal(results.length, 1);
-          test.equal(results[0]['NAME'], "Bill O'Neil");
+          test.equal(results[0]['TVARCHAR2'], "tvarchar2 value");
+          test.equal(results[0]['TNVARCHAR2'], "tnvarchar2 value");
+          test.equal(results[0]['TCHAR'], "tchar value                                                                                                                                                                                                                                                    ");
+          test.equal(results[0]['TNCHAR'], "tnchar value                                                                                                                                                                                                                                                   ");
+          test.equal(results[0]['TNUMBER'], 42.5);
+          test.equal(results[0]['TDATE'].getTime(), date1.getTime());
+          var date2Timestamp = new Date(2011, 11, 1, 0, 0, 0); // same as date2 but without time
+          test.equal(results[0]['TTIMESTAMP'].getTime(), date2Timestamp.getTime());
+          // todo: test.equal(results[0]['TCLOB'], "tclob value");
+          // todo: test.equal(results[0]['TNCLOB'], "tnclob value");
+          // todo: test.equal(results[0]['TBLOB'], null);
           test.done();
         });
       });
