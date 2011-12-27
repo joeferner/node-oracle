@@ -20,9 +20,16 @@ public:
   static Handle<Value> New(const Arguments& args);
   static Handle<Value> Execute(const Arguments& args);
   static Handle<Value> Close(const Arguments& args);
+  static Handle<Value> Commit(const Arguments& args);
+  static Handle<Value> Rollback(const Arguments& args);
+  static Handle<Value> SetAutoCommit(const Arguments& args);
   static Persistent<FunctionTemplate> constructorTemplate;
   static void EIO_Execute(eio_req* req);
   static int EIO_AfterExecute(eio_req* req);
+  static void EIO_Commit(eio_req* req);
+  static int EIO_AfterCommit(eio_req* req);
+  static void EIO_Rollback(eio_req* req);
+  static int EIO_AfterRollback(eio_req* req);
   void closeConnection();
 
   Connection();
@@ -40,6 +47,7 @@ private:
 
   oracle::occi::Connection* m_connection;
   oracle::occi::Environment* m_environment;
+  bool m_autoCommit;
 };
 
 #endif

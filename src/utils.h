@@ -7,6 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define REQ_BOOL_ARG(I, VAR)                                                                         \
+  if (args.Length() <= (I) || !args[I]->IsBoolean())                                                 \
+    return ThrowException(Exception::TypeError(String::New("Argument " #I " must be a bool")));      \
+  bool VAR = args[I]->IsTrue();
+
 #define REQ_STRING_ARG(I, VAR)                                                                       \
   if (args.Length() <= (I) || !args[I]->IsString())                                                  \
     return ThrowException(Exception::TypeError(String::New("Argument " #I " must be a string")));    \

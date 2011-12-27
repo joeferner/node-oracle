@@ -25,6 +25,18 @@ oracle.connect({ "hostname": "localhost", "user": "test", "password": "test" }, 
       // results.updateCount = 1
       // results.returnParam = the id of the person just inserted
     });
+
+  connection.setAutoCommit(true);
+
+  connection.commit(function(err) {
+    // transaction committed
+  });
+
+  connection.rollback(function(err) {
+    // transaction rolledback
+  });
+
+  connection.close(); // call this when you are done with the connection
 });
 ```
 

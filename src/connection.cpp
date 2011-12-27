@@ -1,5 +1,8 @@
 
 #include "connection.h"
+#include "executeBaton.h"
+#include "commitBaton.h"
+#include "rollbackBaton.h"
 #include "outParam.h"
 #include <vector>
 
@@ -15,6 +18,9 @@ void Connection::Init(Handle<Object> target) {
 
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "execute", Execute);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "close", Close);
+  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "setAutoCommit", SetAutoCommit);
+  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "commit", Commit);
+  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "rollback", Rollback);
 
   target->Set(String::NewSymbol("Connection"), constructorTemplate->GetFunction());
 }
@@ -66,6 +72,61 @@ Handle<Value> Connection::Close(const Arguments& args) {
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
   connection->closeConnection();
 
+  return Undefined();
+}
+
+Handle<Value> Connection::Commit(const Arguments& args) {
+  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
+
+  REQ_FUN_ARG(0, callback);
+
+  CommitBaton* baton;
+  try {
+    baton = new CommitBaton(connection, &callback);
+  } catch(NodeOracleException &ex) {
+    Handle<Value> argv[2];
+    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
+    argv[1] = Undefined();
+    callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    return Undefined();
+  }
+
+  eio_custom(EIO_Commit, EIO_PRI_DEFAULT, EIO_AfterCommit, baton);
+  ev_ref(EV_DEFAULT_UC);
+
+  connection->Ref();
+
+  return Undefined();
+}
+
+Handle<Value> Connection::Rollback(const Arguments& args) {
+  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
+
+  REQ_FUN_ARG(0, callback);
+
+  RollbackBaton* baton;
+  try {
+    baton = new RollbackBaton(connection, &callback);
+  } catch(NodeOracleException &ex) {
+    Handle<Value> argv[2];
+    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
+    argv[1] = Undefined();
+    callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    return Undefined();
+  }
+
+  eio_custom(EIO_Rollback, EIO_PRI_DEFAULT, EIO_AfterRollback, baton);
+  ev_ref(EV_DEFAULT_UC);
+
+  connection->Ref();
+
+  return Undefined();
+}
+
+Handle<Value> Connection::SetAutoCommit(const Arguments& args) {
+  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
+  REQ_BOOL_ARG(0, autoCommit);
+  connection->m_autoCommit = autoCommit;
   return Undefined();
 }
 
@@ -187,6 +248,44 @@ row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs,
   return row;
 }
 
+void Connection::EIO_Commit(eio_req* req) {
+  CommitBaton* baton = static_cast<CommitBaton*>(req->data);
+
+  baton->connection->m_connection->commit();
+}
+
+int Connection::EIO_AfterCommit(eio_req* req) {
+  CommitBaton* baton = static_cast<CommitBaton*>(req->data);
+  ev_unref(EV_DEFAULT_UC);
+  baton->connection->Unref();
+
+  Handle<Value> argv[2];
+  argv[0] = Undefined();
+  baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+
+  delete baton;
+  return 0;
+}
+
+void Connection::EIO_Rollback(eio_req* req) {
+  RollbackBaton* baton = static_cast<RollbackBaton*>(req->data);
+
+  baton->connection->m_connection->rollback();
+}
+
+int Connection::EIO_AfterRollback(eio_req* req) {
+  RollbackBaton* baton = static_cast<RollbackBaton*>(req->data);
+  ev_unref(EV_DEFAULT_UC);
+  baton->connection->Unref();
+
+  Handle<Value> argv[2];
+  argv[0] = Undefined();
+  baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+
+  delete baton;
+  return 0;
+}
+
 void Connection::EIO_Execute(eio_req* req) {
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
 
@@ -198,6 +297,7 @@ void Connection::EIO_Execute(eio_req* req) {
   try {
     //printf("%s\n", baton->sql.c_str());
     stmt = baton->connection->m_connection->createStatement(baton->sql);
+    stmt->setAutoCommit(baton->connection->m_autoCommit);
     int outputParam = SetValuesOnStatement(stmt, baton->values);
 
     int status = stmt->execute();
@@ -303,13 +403,13 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* curr
           break;
         case VALUE_TYPE_CLOB:
           {
-            oracle::occi::Clob* v = (oracle::occi::Clob*)val;
+            //oracle::occi::Clob* v = (oracle::occi::Clob*)val;
             obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle clobs
           }
           break;
         case VALUE_TYPE_BLOB:
           {
-            oracle::occi::Blob* v = (oracle::occi::Blob*)val;
+            //oracle::occi::Blob* v = (oracle::occi::Blob*)val;
             obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle blobs
           }
           break;
