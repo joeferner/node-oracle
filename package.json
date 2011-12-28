@@ -2,15 +2,15 @@
     "name": "oracle",
     "description": "Oracle database driver",
     "keywords": ["database", "db", "oracle"],
-    "homepage": "https://github.com/joeferner/node-oracle",
-    "version": "0.1.1",
+    "homepage": "https://github.com/nearinfinity/node-oracle",
+    "version": "0.1.2",
     "engines": { "node" : ">=0.6.0" },
     "maintainers": [
         { "name": "Joe Ferner", "email": "joe@fernsroth.com" }
     ],
-    "bugs" : { "url" : "https://github.com/joeferner/node-oracle/issues" },
+    "bugs" : { "url" : "https://github.com/nearinfinity/node-oracle/issues" },
     "repositories" : [
-        { "type" : "git", "url" : "https://github.com/joeferner/node-oracle" }
+        { "type" : "git", "url" : "https://github.com/nearinfinity/node-oracle" }
     ],
     "scripts" : {
         "install": "node-waf configure build"
