@@ -1,21 +1,24 @@
 {
-    "name": "oracle",
-    "description": "Oracle database driver",
-    "keywords": ["database", "db", "oracle"],
-    "homepage": "https://github.com/nearinfinity/node-oracle",
-    "version": "0.1.2",
-    "engines": { "node" : ">=0.6.0" },
-    "maintainers": [
-        { "name": "Joe Ferner", "email": "joe@fernsroth.com" }
-    ],
-    "bugs" : { "url" : "https://github.com/nearinfinity/node-oracle/issues" },
-    "repositories" : [
-        { "type" : "git", "url" : "https://github.com/nearinfinity/node-oracle" }
-    ],
-    "scripts" : {
-        "install": "node-waf configure build"
-    },
-    "devDependencies" : {
-        "nodeunit" : "~>0.6.4"
-    }
+  "name": "oracle",
+  "description": "Oracle database driver",
+  "keywords": ["database", "db", "oracle"],
+  "homepage": "https://github.com/nearinfinity/node-oracle",
+  "version": "0.1.2",
+  "engines": { "node" : ">=0.6.0" },
+  "maintainers": [
+    { "name": "Joe Ferner", "email": "joe@fernsroth.com" }
+  ],
+  "bugs" : { "url" : "https://github.com/nearinfinity/node-oracle/issues" },
+  "repositories" : { "type" : "git", "url" : "https://github.com/nearinfinity/node-oracle" },
+  "dependencies": {
+    "mnm": "~0.0.2"
+  },
+  "devDependencies" : {
+    "nodeunit" : "~>0.6.4"
+  },
+  "scripts": {
+    "test": "nodeunit test",
+    "install": "node mnm.js build"
+  },
+  "main": "./index.js"
 }
