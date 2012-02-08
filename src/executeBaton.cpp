@@ -40,7 +40,7 @@ ExecuteBaton::~ExecuteBaton() {
 }
 
 double CallDateMethod(v8::Local<v8::Date> date, const char* methodName) {
-  Handle<Value> args[0];
+  Handle<Value> args[1]; // should be zero but on windows the compiler will not allow a zero length array
   Local<Value> result = Local<Function>::Cast(date->Get(String::New(methodName)))->Call(date, 0, args);
   return Local<Number>::Cast(result)->Value();
 }

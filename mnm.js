@@ -15,8 +15,12 @@ ociLibDir = process.env["OCI_LIB_DIR"] || "/usr/lib/oracle/11.2/client/lib/";
 builder.failIfNotExists(ociLibDir, 'Could not find "%s" check OCI_LIB_DIR environment variable.');
 builder.appendLinkerSearchDir(ociLibDir);
 
-builder.appendLinkerLibrary("occi");
-builder.appendLinkerLibrary("clntsh");
+if(process.platform == 'win32') {
+  builder.appendLinkerLibrary("oci");
+} else {
+  builder.appendLinkerLibrary("occi");
+  builder.appendLinkerLibrary("clntsh");
+}
 if (path.existsSync(path.join(ociLibDir, "libnnz10.dylib"))
     || path.existsSync(path.join(ociLibDir, "libnnz10.so"))) {
   builder.appendLinkerLibrary("nnz10");
