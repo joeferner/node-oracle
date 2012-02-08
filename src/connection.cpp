@@ -262,7 +262,7 @@ void Connection::EIO_Commit(uv_work_t* req) {
 
 void Connection::EIO_AfterCommit(uv_work_t* req) {
   CommitBaton* baton = static_cast<CommitBaton*>(req->data);
-  ev_unref(EV_DEFAULT_UC);
+  uv_unref(uv_default_loop());
   baton->connection->Unref();
 
   Handle<Value> argv[2];
@@ -280,7 +280,7 @@ void Connection::EIO_Rollback(uv_work_t* req) {
 
 void Connection::EIO_AfterRollback(uv_work_t* req) {
   RollbackBaton* baton = static_cast<RollbackBaton*>(req->data);
-  ev_unref(EV_DEFAULT_UC);
+  uv_unref(uv_default_loop());
   baton->connection->Unref();
 
   Handle<Value> argv[2];
@@ -442,7 +442,7 @@ Local<Array> Connection::CreateV8ArrayFromRows(ExecuteBaton* baton) {
 
 void Connection::EIO_AfterExecute(uv_work_t* req) {
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
-  ev_unref(EV_DEFAULT_UC);
+  uv_unref(uv_default_loop());
   baton->connection->Unref();
 
   try {

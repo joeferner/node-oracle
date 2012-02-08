@@ -93,7 +93,7 @@ void OracleClient::EIO_Connect(uv_work_t* req) {
 void OracleClient::EIO_AfterConnect(uv_work_t* req) {
   HandleScope scope;
   connect_baton_t* baton = static_cast<connect_baton_t*>(req->data);
-  ev_unref(EV_DEFAULT_UC);
+  uv_unref(uv_default_loop());
   baton->client->Unref();
 
   Handle<Value> argv[2];
