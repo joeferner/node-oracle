@@ -4,7 +4,9 @@
 
 #include <v8.h>
 #include <node.h>
-#include <unistd.h>
+#ifndef WIN32
+  #include <unistd.h>
+#endif
 #include <occi.h>
 #include "utils.h"
 
@@ -16,8 +18,8 @@ public:
   static void Init(Handle<Object> target);
   static Handle<Value> New(const Arguments& args);
   static Handle<Value> Connect(const Arguments& args);
-  static void EIO_Connect(eio_req* req);
-  static int EIO_AfterConnect(eio_req* req);
+  static void EIO_Connect(uv_work_t* req);
+  static void EIO_AfterConnect(uv_work_t* req);
 
   OracleClient();
   ~OracleClient();

@@ -6,7 +6,9 @@ class Connection;
 
 #include <v8.h>
 #include <node.h>
-#include <unistd.h>
+#ifndef WIN32
+  #include <unistd.h>
+#endif
 #include <occi.h>
 #include <string>
 #include <sstream>

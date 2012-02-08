@@ -68,13 +68,15 @@ Handle<Value> OracleClient::Connect(const Arguments& args) {
 
   client->Ref();
 
-  eio_custom(EIO_Connect, EIO_PRI_DEFAULT, EIO_AfterConnect, baton);
+  uv_work_t* req = new uv_work_t();
+  req->data = baton;
+  uv_queue_work(uv_default_loop(), req, EIO_Connect, EIO_AfterConnect);
   ev_ref(EV_DEFAULT_UC);
 
   return Undefined();
 }
 
-void OracleClient::EIO_Connect(eio_req* req) {
+void OracleClient::EIO_Connect(uv_work_t* req) {
   connect_baton_t* baton = static_cast<connect_baton_t*>(req->data);
 
   baton->error = NULL;
@@ -88,7 +90,7 @@ void OracleClient::EIO_Connect(eio_req* req) {
   }
 }
 
-int OracleClient::EIO_AfterConnect(eio_req* req) {
+void OracleClient::EIO_AfterConnect(uv_work_t* req) {
   HandleScope scope;
   connect_baton_t* baton = static_cast<connect_baton_t*>(req->data);
   ev_unref(EV_DEFAULT_UC);
@@ -111,7 +113,6 @@ int OracleClient::EIO_AfterConnect(eio_req* req) {
   if(baton->error) delete baton->error;
 
   delete baton;
-  return 0;
 }
 
 extern "C" {

@@ -60,7 +60,9 @@ Handle<Value> Connection::Execute(const Arguments& args) {
     return Undefined();
   }
 
-  eio_custom(EIO_Execute, EIO_PRI_DEFAULT, EIO_AfterExecute, baton);
+  uv_work_t* req = new uv_work_t();
+  req->data = baton;
+  uv_queue_work(uv_default_loop(), req, EIO_Execute, EIO_AfterExecute);
   ev_ref(EV_DEFAULT_UC);
 
   connection->Ref();
@@ -91,7 +93,9 @@ Handle<Value> Connection::Commit(const Arguments& args) {
     return Undefined();
   }
 
-  eio_custom(EIO_Commit, EIO_PRI_DEFAULT, EIO_AfterCommit, baton);
+  uv_work_t* req = new uv_work_t();
+  req->data = baton;
+  uv_queue_work(uv_default_loop(), req, EIO_Commit, EIO_AfterCommit);
   ev_ref(EV_DEFAULT_UC);
 
   connection->Ref();
@@ -115,7 +119,9 @@ Handle<Value> Connection::Rollback(const Arguments& args) {
     return Undefined();
   }
 
-  eio_custom(EIO_Rollback, EIO_PRI_DEFAULT, EIO_AfterRollback, baton);
+  uv_work_t* req = new uv_work_t();
+  req->data = baton;
+  uv_queue_work(uv_default_loop(), req, EIO_Rollback, EIO_AfterRollback);
   ev_ref(EV_DEFAULT_UC);
 
   connection->Ref();
@@ -248,13 +254,13 @@ row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs,
   return row;
 }
 
-void Connection::EIO_Commit(eio_req* req) {
+void Connection::EIO_Commit(uv_work_t* req) {
   CommitBaton* baton = static_cast<CommitBaton*>(req->data);
 
   baton->connection->m_connection->commit();
 }
 
-int Connection::EIO_AfterCommit(eio_req* req) {
+void Connection::EIO_AfterCommit(uv_work_t* req) {
   CommitBaton* baton = static_cast<CommitBaton*>(req->data);
   ev_unref(EV_DEFAULT_UC);
   baton->connection->Unref();
@@ -264,16 +270,15 @@ int Connection::EIO_AfterCommit(eio_req* req) {
   baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
 
   delete baton;
-  return 0;
 }
 
-void Connection::EIO_Rollback(eio_req* req) {
+void Connection::EIO_Rollback(uv_work_t* req) {
   RollbackBaton* baton = static_cast<RollbackBaton*>(req->data);
 
   baton->connection->m_connection->rollback();
 }
 
-int Connection::EIO_AfterRollback(eio_req* req) {
+void Connection::EIO_AfterRollback(uv_work_t* req) {
   RollbackBaton* baton = static_cast<RollbackBaton*>(req->data);
   ev_unref(EV_DEFAULT_UC);
   baton->connection->Unref();
@@ -283,10 +288,9 @@ int Connection::EIO_AfterRollback(eio_req* req) {
   baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
 
   delete baton;
-  return 0;
 }
 
-void Connection::EIO_Execute(eio_req* req) {
+void Connection::EIO_Execute(uv_work_t* req) {
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
 
   baton->rows = NULL;
@@ -436,7 +440,7 @@ Local<Array> Connection::CreateV8ArrayFromRows(ExecuteBaton* baton) {
   return rows;
 }
 
-int Connection::EIO_AfterExecute(eio_req* req) {
+void Connection::EIO_AfterExecute(uv_work_t* req) {
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
   ev_unref(EV_DEFAULT_UC);
   baton->connection->Unref();
@@ -469,7 +473,6 @@ int Connection::EIO_AfterExecute(eio_req* req) {
   }
 
   delete baton;
-  return 0;
 }
 
 void Connection::setConnection(oracle::occi::Environment* environment, oracle::occi::Connection* connection) {

@@ -4,7 +4,9 @@
 
 #include <v8.h>
 #include <node.h>
-#include <unistd.h>
+#ifndef WIN32
+  #include <unistd.h>
+#endif
 #include <occi.h>
 #include <oro.h>
 #include "utils.h"
@@ -24,12 +26,12 @@ public:
   static Handle<Value> Rollback(const Arguments& args);
   static Handle<Value> SetAutoCommit(const Arguments& args);
   static Persistent<FunctionTemplate> constructorTemplate;
-  static void EIO_Execute(eio_req* req);
-  static int EIO_AfterExecute(eio_req* req);
-  static void EIO_Commit(eio_req* req);
-  static int EIO_AfterCommit(eio_req* req);
-  static void EIO_Rollback(eio_req* req);
-  static int EIO_AfterRollback(eio_req* req);
+  static void EIO_Execute(uv_work_t* req);
+  static void EIO_AfterExecute(uv_work_t* req);
+  static void EIO_Commit(uv_work_t* req);
+  static void EIO_AfterCommit(uv_work_t* req);
+  static void EIO_Rollback(uv_work_t* req);
+  static void EIO_AfterRollback(uv_work_t* req);
   void closeConnection();
 
   Connection();
