@@ -71,7 +71,7 @@ Handle<Value> OracleClient::Connect(const Arguments& args) {
   uv_work_t* req = new uv_work_t();
   req->data = baton;
   uv_queue_work(uv_default_loop(), req, EIO_Connect, EIO_AfterConnect);
-  ev_ref(EV_DEFAULT_UC);
+  uv_ref(uv_default_loop());
 
   return Undefined();
 }
