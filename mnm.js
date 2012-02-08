@@ -17,15 +17,17 @@ builder.appendLinkerSearchDir(ociLibDir);
 
 if(process.platform == 'win32') {
   builder.appendLinkerLibrary("oci");
+  builder.appendLinkerLibrary("ociw32");
+  builder.appendLinkerLibrary("oraocci11");
 } else {
   builder.appendLinkerLibrary("occi");
   builder.appendLinkerLibrary("clntsh");
-}
-if (path.existsSync(path.join(ociLibDir, "libnnz10.dylib"))
-    || path.existsSync(path.join(ociLibDir, "libnnz10.so"))) {
-  builder.appendLinkerLibrary("nnz10");
-} else {
-  builder.appendLinkerLibrary("nnz11");
+  if (path.existsSync(path.join(ociLibDir, "libnnz10.dylib"))
+      || path.existsSync(path.join(ociLibDir, "libnnz10.so"))) {
+    builder.appendLinkerLibrary("nnz10");
+  } else {
+    builder.appendLinkerLibrary("nnz11");
+  }
 }
 
 builder.target = "oracle_bindings"
