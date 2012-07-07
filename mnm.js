@@ -22,8 +22,8 @@ if(process.platform == 'win32') {
 } else {
   builder.appendLinkerLibrary("occi");
   builder.appendLinkerLibrary("clntsh");
-  if (path.existsSync(path.join(ociLibDir, "libnnz10.dylib"))
-      || path.existsSync(path.join(ociLibDir, "libnnz10.so"))) {
+  if (fs.existsSync(path.join(ociLibDir, "libnnz10.dylib"))
+      || fs.existsSync(path.join(ociLibDir, "libnnz10.so"))) {
     builder.appendLinkerLibrary("nnz10");
   } else {
     builder.appendLinkerLibrary("nnz11");
