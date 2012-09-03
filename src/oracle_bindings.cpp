@@ -71,7 +71,6 @@ Handle<Value> OracleClient::Connect(const Arguments& args) {
   uv_work_t* req = new uv_work_t();
   req->data = baton;
   uv_queue_work(uv_default_loop(), req, EIO_Connect, EIO_AfterConnect);
-  uv_ref(uv_default_loop());
 
   return Undefined();
 }
@@ -93,7 +92,6 @@ void OracleClient::EIO_Connect(uv_work_t* req) {
 void OracleClient::EIO_AfterConnect(uv_work_t* req) {
   HandleScope scope;
   connect_baton_t* baton = static_cast<connect_baton_t*>(req->data);
-  uv_unref(uv_default_loop());
   baton->client->Unref();
 
   Handle<Value> argv[2];
