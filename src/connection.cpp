@@ -5,6 +5,7 @@
 #include "rollbackBaton.h"
 #include "outParam.h"
 #include <vector>
+#include <node_version.h>
 
 Persistent<FunctionTemplate> Connection::constructorTemplate;
 
@@ -63,7 +64,6 @@ Handle<Value> Connection::Execute(const Arguments& args) {
   uv_work_t* req = new uv_work_t();
   req->data = baton;
   uv_queue_work(uv_default_loop(), req, EIO_Execute, EIO_AfterExecute);
-  uv_ref(uv_default_loop());
 
   connection->Ref();
 
@@ -96,7 +96,6 @@ Handle<Value> Connection::Commit(const Arguments& args) {
   uv_work_t* req = new uv_work_t();
   req->data = baton;
   uv_queue_work(uv_default_loop(), req, EIO_Commit, EIO_AfterCommit);
-  uv_ref(uv_default_loop());
 
   connection->Ref();
 
@@ -122,8 +121,7 @@ Handle<Value> Connection::Rollback(const Arguments& args) {
   uv_work_t* req = new uv_work_t();
   req->data = baton;
   uv_queue_work(uv_default_loop(), req, EIO_Rollback, EIO_AfterRollback);
-  uv_ref(uv_default_loop());
-
+ 
   connection->Ref();
 
   return Undefined();
@@ -262,7 +260,7 @@ void Connection::EIO_Commit(uv_work_t* req) {
 
 void Connection::EIO_AfterCommit(uv_work_t* req) {
   CommitBaton* baton = static_cast<CommitBaton*>(req->data);
-  uv_unref(uv_default_loop());
+
   baton->connection->Unref();
 
   Handle<Value> argv[2];
@@ -280,7 +278,7 @@ void Connection::EIO_Rollback(uv_work_t* req) {
 
 void Connection::EIO_AfterRollback(uv_work_t* req) {
   RollbackBaton* baton = static_cast<RollbackBaton*>(req->data);
-  uv_unref(uv_default_loop());
+
   baton->connection->Unref();
 
   Handle<Value> argv[2];
@@ -442,7 +440,7 @@ Local<Array> Connection::CreateV8ArrayFromRows(ExecuteBaton* baton) {
 
 void Connection::EIO_AfterExecute(uv_work_t* req) {
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
-  uv_unref(uv_default_loop());
+
   baton->connection->Unref();
 
   try {

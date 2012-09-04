@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 var path = require('path');
+var fs = require('fs');
 var Builder = require('mnm');
 var builder = new Builder();
 
