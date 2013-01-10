@@ -71,9 +71,9 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
 
     // string
     else if(val->IsString()) {
-      v8::String::AsciiValue asciiVal(val);
+      v8::String::Utf8Value utf8Value(val);
       value->type = VALUE_TYPE_STRING;
-      value->value = new std::string(*asciiVal);
+      value->value = new std::string(*utf8Value);
       baton->values.push_back(value);
     }
 

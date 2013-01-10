@@ -36,8 +36,8 @@
   {                                                                                                  \
     Local<Value> __val = OBJ->Get(String::New(KEY));                                                 \
     if(__val->IsString()) {                                                                          \
-      String::AsciiValue __asciiVal(__val);                                                          \
-      VAR = *__asciiVal;                                                                             \
+      String::Utf8Value __utf8Val(__val);                                                          \
+      VAR = *__utf8Val;                                                                             \
     }                                                                                                \
   }
 
@@ -48,8 +48,8 @@
       VAR = __val->ToNumber()->Value();                                                              \
     }                                                                                                \
     else if(__val->IsString()) {                                                                     \
-      String::AsciiValue __asciiVal(__val);                                                          \
-      VAR = atoi(*__asciiVal);                                                                       \
+      String::Utf8Value __utf8Value(__val);                                                          \
+      VAR = atoi(*__utf8Value);                                                                       \
     } else {                                                                                         \
       VAR = DEFAULT;                                                                                 \
     }                                                                                                \
