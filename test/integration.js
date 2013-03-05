@@ -128,8 +128,8 @@ exports['IntegrationTest'] = nodeunit.testCase({
           test.equal(results[0]['TDATE'].getTime(), date1.getTime());
           var date2Timestamp = new Date(2011, 11, 1, 0, 0, 0); // same as date2 but without time
           test.equal(results[0]['TTIMESTAMP'].getTime(), date2Timestamp.getTime());
-          // todo: test.equal(results[0]['TCLOB'], "tclob value");
-          // todo: test.equal(results[0]['TNCLOB'], "tnclob value");
+          test.equal(results[0]['TCLOB'], "tclob value");
+          test.equal(results[0]['TNCLOB'], "tnclob value");
           // todo: test.equal(results[0]['TBLOB'], null);
           test.done();
         });
