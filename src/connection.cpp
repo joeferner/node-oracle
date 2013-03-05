@@ -121,7 +121,7 @@ Handle<Value> Connection::Rollback(const Arguments& args) {
   uv_work_t* req = new uv_work_t();
   req->data = baton;
   uv_queue_work(uv_default_loop(), req, EIO_Rollback, EIO_AfterRollback);
- 
+
   connection->Ref();
 
   return Undefined();
@@ -405,8 +405,18 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* curr
           break;
         case VALUE_TYPE_CLOB:
           {
-            //oracle::occi::Clob* v = (oracle::occi::Clob*)val;
-            obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle clobs
+            oracle::occi::Clob* v = (oracle::occi::Clob*)val;
+            v->open(oracle::occi::OCCI_LOB_READONLY);
+            v->setCharSetForm(oracle::occi::OCCI_SQLCS_NCHAR);
+
+            int clobLength = v->length();
+            oracle::occi::Stream *instream = v->getStream(1,0);
+            char *buffer = new char[clobLength];
+            memset(buffer, NULL, clobLength);
+            instream->readBuffer(buffer, clobLength);
+            v->closeStream(instream);
+
+            obj->Set(String::New(col->name.c_str()), String::New(buffer));
           }
           break;
         case VALUE_TYPE_BLOB:
