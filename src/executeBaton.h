@@ -28,6 +28,7 @@ enum {
 
 struct column_t {
   int type;
+  int charForm;
   std::string name;
 };
 

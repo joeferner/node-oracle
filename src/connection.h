@@ -27,11 +27,11 @@ public:
   static Handle<Value> SetAutoCommit(const Arguments& args);
   static Persistent<FunctionTemplate> constructorTemplate;
   static void EIO_Execute(uv_work_t* req);
-  static void EIO_AfterExecute(uv_work_t* req);
+  static void EIO_AfterExecute(uv_work_t* req, int status);
   static void EIO_Commit(uv_work_t* req);
-  static void EIO_AfterCommit(uv_work_t* req);
+  static void EIO_AfterCommit(uv_work_t* req, int status);
   static void EIO_Rollback(uv_work_t* req);
-  static void EIO_AfterRollback(uv_work_t* req);
+  static void EIO_AfterRollback(uv_work_t* req, int status);
   void closeConnection();
 
   Connection();

@@ -76,7 +76,6 @@ sqlplus test@XE
 ## Build
 
 ```bash
-node-waf configure
-node-waf build
-nodeunit tests/*
+npm install
+npm test
 ```
