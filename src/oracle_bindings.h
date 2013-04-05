@@ -19,7 +19,7 @@ public:
   static Handle<Value> New(const Arguments& args);
   static Handle<Value> Connect(const Arguments& args);
   static void EIO_Connect(uv_work_t* req);
-  static void EIO_AfterConnect(uv_work_t* req);
+  static void EIO_AfterConnect(uv_work_t* req, int status);
 
   OracleClient();
   ~OracleClient();

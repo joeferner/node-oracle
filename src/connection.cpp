@@ -71,10 +71,15 @@ Handle<Value> Connection::Execute(const Arguments& args) {
 }
 
 Handle<Value> Connection::Close(const Arguments& args) {
-  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
-  connection->closeConnection();
+  try {
+	  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
+	  connection->closeConnection();
 
-  return Undefined();
+	  return Undefined();
+  } catch (const std::exception& ex) {
+	  printf("Exception: %s\n", ex.what());
+	  return Undefined();
+  }
 }
 
 Handle<Value> Connection::Commit(const Arguments& args) {
@@ -177,6 +182,7 @@ void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::ve
     column_t* col = new column_t();
     col->name = metadata.getString(oracle::occi::MetaData::ATTR_NAME);
     int type = metadata.getInt(oracle::occi::MetaData::ATTR_DATA_TYPE);
+    col->charForm = metadata.getInt(oracle::occi::MetaData::ATTR_CHARSET_FORM);
     switch(type) {
       case oracle::occi::OCCI_TYPECODE_NUMBER:
       case oracle::occi::OCCI_TYPECODE_FLOAT:
@@ -258,7 +264,7 @@ void Connection::EIO_Commit(uv_work_t* req) {
   baton->connection->m_connection->commit();
 }
 
-void Connection::EIO_AfterCommit(uv_work_t* req) {
+void Connection::EIO_AfterCommit(uv_work_t* req, int status) {
   CommitBaton* baton = static_cast<CommitBaton*>(req->data);
 
   baton->connection->Unref();
@@ -276,7 +282,7 @@ void Connection::EIO_Rollback(uv_work_t* req) {
   baton->connection->m_connection->rollback();
 }
 
-void Connection::EIO_AfterRollback(uv_work_t* req) {
+void Connection::EIO_AfterRollback(uv_work_t* req, int status) {
   RollbackBaton* baton = static_cast<RollbackBaton*>(req->data);
 
   baton->connection->Unref();
@@ -323,6 +329,8 @@ void Connection::EIO_Execute(uv_work_t* req) {
     baton->error = new std::string(ex.getMessage());
   } catch(NodeOracleException &ex) {
     baton->error = new std::string(ex.getMessage());
+  } catch (const std::exception& ex) {
+	baton->error = new std::string(ex.what());
   }
 
   if(stmt && rs) {
@@ -372,6 +380,7 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* curr
   uint32_t colIndex = 0;
   for (std::vector<column_t*>::iterator iterator = baton->columns.begin(), end = baton->columns.end(); iterator != end; ++iterator, colIndex++) {
     column_t* col = *iterator;
+    // printf("Column: %s\n", col->name.c_str());
     void* val = currentRow->values[colIndex];
     if(val == NULL) {
       obj->Set(String::New(col->name.c_str()), Null());
@@ -407,16 +416,31 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* curr
           {
             oracle::occi::Clob* v = (oracle::occi::Clob*)val;
             v->open(oracle::occi::OCCI_LOB_READONLY);
-            v->setCharSetForm(oracle::occi::OCCI_SQLCS_NCHAR);
+
+            switch(col->charForm) {
+            case SQLCS_IMPLICIT:
+            	v->setCharSetForm(oracle::occi::OCCI_SQLCS_IMPLICIT);
+                break;
+            case SQLCS_NCHAR:
+            	v->setCharSetForm(oracle::occi::OCCI_SQLCS_NCHAR);
+                break;
+            case SQLCS_EXPLICIT:
+            	v->setCharSetForm(oracle::occi::OCCI_SQLCS_EXPLICIT);
+                break;
+            case SQLCS_FLEXIBLE:
+            	v->setCharSetForm(oracle::occi::OCCI_SQLCS_FLEXIBLE);
+                break;
+            }
 
             int clobLength = v->length();
             oracle::occi::Stream *instream = v->getStream(1,0);
             char *buffer = new char[clobLength];
-            memset(buffer, NULL, clobLength);
+            memset(buffer, (int) NULL, clobLength);
             instream->readBuffer(buffer, clobLength);
             v->closeStream(instream);
-
-            obj->Set(String::New(col->name.c_str()), String::New(buffer));
+            v->close();
+            obj->Set(String::New(col->name.c_str()), String::New(buffer, clobLength));
+            delete buffer;
           }
           break;
         case VALUE_TYPE_BLOB:
@@ -448,7 +472,7 @@ Local<Array> Connection::CreateV8ArrayFromRows(ExecuteBaton* baton) {
   return rows;
 }
 
-void Connection::EIO_AfterExecute(uv_work_t* req) {
+void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
 
   baton->connection->Unref();
@@ -478,6 +502,11 @@ void Connection::EIO_AfterExecute(uv_work_t* req) {
     argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
     argv[1] = Undefined();
     baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+  } catch(const std::exception &ex) {
+	    Handle<Value> argv[2];
+	    argv[0] = Exception::Error(String::New(ex.what()));
+	    argv[1] = Undefined();
+	    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
   }
 
   delete baton;
