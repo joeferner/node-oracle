@@ -348,31 +348,35 @@ void CallDateMethod(v8::Local<v8::Date> date, const char* methodName, int val) {
 }
 
 Local<Date> OracleDateToV8Date(oracle::occi::Date* d) {
-  int year;
-  unsigned int month, day, hour, min, sec;
-  d->getDate(year, month, day, hour, min, sec);
-  Local<Date> date = Date::Cast(*Date::New(0.0));
-  CallDateMethod(date, "setSeconds", sec);
-  CallDateMethod(date, "setMinutes", min);
-  CallDateMethod(date, "setHours", hour);
-  CallDateMethod(date, "setDate", day);
-  CallDateMethod(date, "setMonth", month - 1);
-  CallDateMethod(date, "setFullYear", year);
-  return date;
+	int year;
+	unsigned int month, day, hour, min, sec;
+	d->getDate(year, month, day, hour, min, sec);
+	Local<Date> date = Date::Cast(*Date::New(0.0));
+	CallDateMethod(date, "setUTCMilliSeconds", 0);
+	CallDateMethod(date, "setUTCSeconds", sec);
+	CallDateMethod(date, "setUTCMinutes", min);
+	CallDateMethod(date, "setUTCHours", hour);
+	CallDateMethod(date, "setUTCDate", day);
+	CallDateMethod(date, "setUTCMonth", month - 1);
+	CallDateMethod(date, "setUTCFullYear", year);
+	return date;
 }
 
 Local<Date> OracleTimestampToV8Date(oracle::occi::Timestamp* d) {
-  int year;
-  unsigned int month, day;
-  d->getDate(year, month, day);
-  Local<Date> date = Date::Cast(*Date::New(0.0));
-  CallDateMethod(date, "setSeconds", 0);
-  CallDateMethod(date, "setMinutes", 0);
-  CallDateMethod(date, "setHours", 0);
-  CallDateMethod(date, "setDate", day);
-  CallDateMethod(date, "setMonth", month - 1);
-  CallDateMethod(date, "setFullYear", year);
-  return date;
+	int year;
+	unsigned int month, day, hour, min, sec, fs;
+	d->getDate(year, month, day);
+	d->getTime(hour, min, sec, fs);
+	Local<Date> date = Date::Cast(*Date::New(0.0));
+
+	CallDateMethod(date, "setUTCMilliSeconds", fs);
+	CallDateMethod(date, "setUTCSeconds", sec);
+	CallDateMethod(date, "setUTCMinutes", min);
+	CallDateMethod(date, "setUTCHours", hour);
+	CallDateMethod(date, "setUTCDate", day);
+	CallDateMethod(date, "setUTCMonth", month - 1);
+	CallDateMethod(date, "setUTCFullYear", year);
+	return date;
 }
 
 Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* currentRow) {
