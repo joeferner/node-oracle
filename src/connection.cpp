@@ -315,8 +315,8 @@ void Connection::EIO_Execute(uv_work_t* req) {
         baton->returnParam = new int;
         *(baton->returnParam) = stmt->getInt(outputParam);
       }
-    } else {
-      rs = stmt->executeQuery();
+    } else if(status == oracle::occi::Statement::RESULT_SET_AVAILABLE) {
+      rs = stmt->getResultSet();
       CreateColumnsFromResultSet(rs, baton->columns);
       baton->rows = new std::vector<row_t*>();
 
