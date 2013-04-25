@@ -1,4 +1,4 @@
-
+#include <string.h>
 #include "connection.h"
 #include "executeBaton.h"
 #include "commitBaton.h"
@@ -6,6 +6,8 @@
 #include "outParam.h"
 #include <vector>
 #include <node_version.h>
+#include <iostream>
+using namespace std;
 
 Persistent<FunctionTemplate> Connection::constructorTemplate;
 
@@ -151,6 +153,8 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
   int outputParam = -1;
   for (std::vector<value_t*>::iterator iterator = values.begin(), end = values.end(); iterator != end; ++iterator, index++) {
     value_t* val = *iterator;
+    int outParamType;
+
     switch(val->type) {
       case VALUE_TYPE_NULL:
         stmt->setNull(index, oracle::occi::OCCISTRING);
@@ -165,7 +169,17 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
         stmt->setDate(index, *((oracle::occi::Date*)val->value));
         break;
       case VALUE_TYPE_OUTPUT:
-        stmt->registerOutParam(index, oracle::occi::OCCIINT);
+        outParamType = ((OutParam*)val->value)->type();
+        switch(outParamType) {
+          case OutParam::OCCIINT:
+            stmt->registerOutParam(index, oracle::occi::OCCIINT);
+            break;
+          case OutParam::OCCISTRING:
+            stmt->registerOutParam(index, oracle::occi::OCCISTRING, ((OutParam*)val->value)->size());
+            break;
+          default:
+            throw NodeOracleException("SetValuesOnStatement: Unknown OutParam type: " + outParamType);
+        }
         outputParam = index;
         break;
       default:
@@ -303,7 +317,6 @@ void Connection::EIO_Execute(uv_work_t* req) {
   oracle::occi::Statement* stmt = NULL;
   oracle::occi::ResultSet* rs = NULL;
   try {
-    //printf("%s\n", baton->sql.c_str());
     stmt = baton->connection->m_connection->createStatement(baton->sql);
     stmt->setAutoCommit(baton->connection->m_autoCommit);
     int outputParam = SetValuesOnStatement(stmt, baton->values);
@@ -312,8 +325,22 @@ void Connection::EIO_Execute(uv_work_t* req) {
     if(status == oracle::occi::Statement::UPDATE_COUNT_AVAILABLE) {
       baton->updateCount = stmt->getUpdateCount();
       if(outputParam >= 0) {
-        baton->returnParam = new int;
-        *(baton->returnParam) = stmt->getInt(outputParam);
+        // TODO - how to hanmdle multpile output params from occi statements
+        for (std::vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator) {
+          output_t* output = *iterator;
+          switch(output->type) {
+          case OutParam::OCCIINT:
+            output->ret = (const void*) new int;
+            output->ret = (const void*) (intptr_t)stmt->getInt(outputParam); // TODO - fix warning
+            break;
+          case OutParam::OCCISTRING:
+            output->ret = (const void*) new string;
+            output->ret = stmt->getString(outputParam).c_str();
+            break;
+          default:
+            throw NodeOracleException("Unknown OutParam type: " + output->type);
+          }          
+        }
       }
     } else {
       rs = stmt->executeQuery();
@@ -476,7 +503,6 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
 
   baton->connection->Unref();
-
   try {
     Handle<Value> argv[2];
     if(baton->error) {
@@ -489,9 +515,20 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
       } else {
         Local<Object> obj = Object::New();
         obj->Set(String::New("updateCount"), Integer::New(baton->updateCount));
-        if(baton->returnParam) {
-          obj->Set(String::New("returnParam"), Integer::New(*baton->returnParam));
-          delete baton->returnParam;
+
+        // TODO - how to handle multpile output params from occi statements
+        for (std::vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator) {
+          output_t* output = *iterator;
+          switch(output->type) {
+          case OutParam::OCCIINT:
+            obj->Set(String::New("returnParam"), Integer::New(*((int*)(&output->ret))));
+            break;
+          case OutParam::OCCISTRING:
+            obj->Set(String::New("returnParam"), String::New((const char*)output->ret));
+            break;
+          default:
+            throw NodeOracleException("Unknown OutParam type: " + output->type);
+          }          
         }
         argv[1] = obj;
       }

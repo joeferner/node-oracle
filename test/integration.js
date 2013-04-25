@@ -33,6 +33,27 @@
        SELECT datatype_test_seq.nextval INTO :new.id FROM dual;
      END;
    /
+  CREATE OR REPLACE PROCEDURE procNumericOutParam(param1 IN VARCHAR2, outParam1 OUT NUMBER)
+  IS
+  BEGIN
+    DBMS_OUTPUT.PUT_LINE('Hello '|| param1);
+    outParam1 := 42;
+  END;
+  /
+  CREATE OR REPLACE PROCEDURE procStringOutParam(param1 IN VARCHAR2, outParam1 OUT STRING)
+  IS
+  BEGIN
+    DBMS_OUTPUT.PUT_LINE('Hello '|| param1);
+    outParam1 := 'Hello ' || param1;
+  END;
+  /
+  CREATE OR REPLACE PROCEDURE procVarChar2OutParam(param1 IN VARCHAR2, outParam1 OUT VARCHAR2)
+  IS
+  BEGIN
+    DBMS_OUTPUT.PUT_LINE('Hello '|| param1);
+    outParam1 := 'Hello ' || param1;
+  END;
+  /
 */
 
 var nodeunit = require("nodeunit");
@@ -134,6 +155,36 @@ exports['IntegrationTest'] = nodeunit.testCase({
           test.done();
         });
       });
+  },
+
+  "stored procedures - numeric out param": function(test){
+    var self = this;
+    var out = 0;
+    self.connection.execute("call procNumericOutParam(:1,:2)", ["node", new oracle.OutParam()], function(err, results){
+      if(err) { console.error(err); return; }
+      test.equal(results.returnParam, 42);
+      test.done();
+    });
+  },
+
+  "stored procedures - string out param": function(test){
+    var self = this;
+    var out = 0;
+    self.connection.execute("call procStringOutParam(:1,:2)", ["node", new oracle.OutParam(oracle.OCCISTRING)], function(err, results){
+      if(err) { console.error(err); return; }
+      test.equal(results.returnParam, "Hello node");
+      test.done();
+    });
+  },
+
+  "stored procedures - varchar2 out param": function(test){
+    var self = this;
+    var out = 0;
+    self.connection.execute("call procVarChar2OutParam(:1,:2)", ["node", new oracle.OutParam(oracle.OCCISTRING, 40)], function(err, results){
+      if(err) { console.error(err); return; }
+      test.equal(results.returnParam, "Hello node");
+      test.done();
+    });
   },
 
   "datatypes null": function(test) {

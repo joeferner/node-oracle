@@ -41,6 +41,12 @@ struct value_t {
   void* value;
 };
 
+struct output_t {
+  int type;
+  int index;
+  const void* ret;
+};
+
 class ExecuteBaton {
 public:
   ExecuteBaton(Connection* connection, const char* sql, v8::Local<v8::Array>* values, v8::Handle<v8::Function>* callback);
@@ -52,9 +58,9 @@ public:
   std::string sql;
   std::vector<column_t*> columns;
   std::vector<row_t*>* rows;
+  std::vector<output_t*>* outputs;
   std::string* error;
   int updateCount;
-  int* returnParam;
 
 private:
   static void CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* values);
