@@ -177,6 +177,12 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
           case OutParam::OCCISTRING:
             stmt->registerOutParam(index, oracle::occi::OCCISTRING, ((OutParam*)val->value)->size());
             break;
+          case OutParam::OCCIDOUBLE:
+            stmt->registerOutParam(index, oracle::occi::OCCIDOUBLE);
+            break;
+          case OutParam::OCCIFLOAT:
+            stmt->registerOutParam(index, oracle::occi::OCCIFLOAT);
+            break;
           default:
             throw NodeOracleException("SetValuesOnStatement: Unknown OutParam type: " + outParamType);
         }
@@ -330,12 +336,17 @@ void Connection::EIO_Execute(uv_work_t* req) {
           output_t* output = *iterator;
           switch(output->type) {
           case OutParam::OCCIINT:
-            output->ret = (const void*) new int;
-            output->ret = (const void*) (intptr_t)stmt->getInt(outputParam); // TODO - fix warning
+            output->intVal = stmt->getInt(outputParam); 
             break;
           case OutParam::OCCISTRING:
             output->ret = (const void*) new string;
             output->ret = stmt->getString(outputParam).c_str();
+            break;
+          case OutParam::OCCIDOUBLE:
+            output->doubleVal = stmt->getDouble(outputParam);
+            break;
+          case OutParam::OCCIFLOAT:
+            output->floatVal = stmt->getFloat(outputParam);
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);
@@ -521,10 +532,16 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
           output_t* output = *iterator;
           switch(output->type) {
           case OutParam::OCCIINT:
-            obj->Set(String::New("returnParam"), Integer::New(*((int*)(&output->ret))));
+            obj->Set(String::New("returnParam"), Integer::New(output->intVal));
             break;
           case OutParam::OCCISTRING:
             obj->Set(String::New("returnParam"), String::New((const char*)output->ret));
+            break;
+          case OutParam::OCCIDOUBLE:
+            obj->Set(String::New("returnParam"), Number::New(output->doubleVal));
+            break;
+          case OutParam::OCCIFLOAT:
+            obj->Set(String::New("returnParam"), Number::New(output->floatVal));
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);

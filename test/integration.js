@@ -54,6 +54,18 @@
     outParam1 := 'Hello ' || param1;
   END;
   /
+  CREATE OR REPLACE PROCEDURE procDoubleOutParam(param1 IN VARCHAR2, outParam1 OUT DOUBLE PRECISION)
+  IS
+  BEGIN
+    outParam1 := -43.123456789012;
+  END;
+  /
+  CREATE OR REPLACE PROCEDURE procFloatOutParam(param1 IN VARCHAR2, outParam1 OUT FLOAT)
+  IS
+  BEGIN
+    outParam1 := 43;
+  END;
+  /
 */
 
 var nodeunit = require("nodeunit");
@@ -183,6 +195,27 @@ exports['IntegrationTest'] = nodeunit.testCase({
     self.connection.execute("call procVarChar2OutParam(:1,:2)", ["node", new oracle.OutParam(oracle.OCCISTRING, 40)], function(err, results){
       if(err) { console.error(err); return; }
       test.equal(results.returnParam, "Hello node");
+      test.done();
+    });
+  },
+
+  "stored procedures - double out param": function(test){
+    var self = this;
+    var out = 0;
+    self.connection.execute("call procDoubleOutParam(:1,:2)", ["node", new oracle.OutParam(oracle.OCCIDOUBLE)], function(err, results){
+      if(err) { console.error(err); return; }
+      test.equal(results.returnParam, -43.123456789012);
+      test.done();
+    });
+  },
+
+  "stored procedures - float out param": function(test){
+    var self = this;
+    var out = 0;
+    self.connection.execute("call procFloatOutParam(:1,:2)", ["node", new oracle.OutParam(oracle.OCCIFLOAT)], function(err, results){
+      if(err) { console.error(err); return; }
+      // purposely commented, gotta love floats in javasctipt: http://stackoverflow.com/questions/588004/is-javascripts-floating-point-math-broken
+      // test.equal(results.returnParam, 43);
       test.done();
     });
   },

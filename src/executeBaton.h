@@ -45,6 +45,9 @@ struct output_t {
   int type;
   int index;
   const void* ret;
+  int intVal;
+  double doubleVal;
+  float floatVal;
 };
 
 class ExecuteBaton {

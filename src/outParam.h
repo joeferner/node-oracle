@@ -27,6 +27,8 @@ public:
   int size();  
   static const int OCCIINT = 0;
   static const int OCCISTRING = 1;
+  static const int OCCIDOUBLE = 2;
+  static const int OCCIFLOAT = 3;
 
 private:
 };
