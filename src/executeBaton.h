@@ -44,13 +44,13 @@ struct value_t {
 struct output_t {
   int type;
   int index;
-  const void* ret; // TODO - rename, change to char *
+  const char* strVal; 
   int intVal;
   double doubleVal;
   float floatVal;
   std::vector<row_t*>* rows;
   std::vector<column_t*> columns;
-  oracle::occi::Clob clob;
+  oracle::occi::Clob clobVal;
 };
 
 class ExecuteBaton {

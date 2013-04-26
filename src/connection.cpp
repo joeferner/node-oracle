@@ -345,8 +345,8 @@ void Connection::EIO_Execute(uv_work_t* req) {
             output->intVal = stmt->getInt(output->index); 
             break;
           case OutParam::OCCISTRING:
-            output->ret = (const void*) new string;
-            output->ret = stmt->getString(output->index).c_str();
+            output->strVal = (const char*) new string;
+            output->strVal = stmt->getString(output->index).c_str();
             break;
           case OutParam::OCCIDOUBLE:
             output->doubleVal = stmt->getDouble(output->index);
@@ -364,7 +364,7 @@ void Connection::EIO_Execute(uv_work_t* req) {
             }
             break;
           case OutParam::OCCICLOB:
-            output->clob = stmt->getClob(output->index);
+            output->clobVal = stmt->getClob(output->index);
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);
@@ -565,7 +565,7 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
             obj->Set(String::New(returnParam.c_str()), Integer::New(output->intVal));
             break;
           case OutParam::OCCISTRING:
-            obj->Set(String::New(returnParam.c_str()), String::New((const char*)output->ret));
+            obj->Set(String::New(returnParam.c_str()), String::New(output->strVal));
             break;
           case OutParam::OCCIDOUBLE:
             obj->Set(String::New(returnParam.c_str()), Number::New(output->doubleVal));
@@ -577,14 +577,14 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
             obj->Set(String::New(returnParam.c_str()), CreateV8ArrayFromRows(output->columns, output->rows));
             break;
           case OutParam::OCCICLOB:
-            output->clob.open(oracle::occi::OCCI_LOB_READONLY);
-            clobLength = output->clob.length();
-            instream = output->clob.getStream(1,0);
+            output->clobVal.open(oracle::occi::OCCI_LOB_READONLY);
+            clobLength = output->clobVal.length();
+            instream = output->clobVal.getStream(1,0);
             buffer = new char[clobLength];
             memset(buffer, (int) NULL, clobLength);
             instream->readBuffer(buffer, clobLength);
-            output->clob.closeStream(instream);
-            output->clob.close();
+            output->clobVal.closeStream(instream);
+            output->clobVal.close();
             obj->Set(String::New(returnParam.c_str()), String::New(buffer, clobLength));
             delete buffer;
             break;
