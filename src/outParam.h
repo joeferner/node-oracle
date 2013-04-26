@@ -31,6 +31,9 @@ public:
   static const int OCCIFLOAT = 3;
   static const int OCCICURSOR = 4;
   static const int OCCICLOB = 5;
+  static const int OCCIDATE = 6;
+  static const int OCCITIMESTAMP = 7;
+  static const int OCCINUMBER = 8;
 
 private:
 };

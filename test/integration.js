@@ -190,9 +190,18 @@ exports['IntegrationTest'] = nodeunit.testCase({
       });
   },
 
-  "stored procedures - numeric out param": function(test){
+  "stored procedures - numeric out param - occiint": function(test){
     var self = this;
     self.connection.execute("call procNumericOutParam(:1,:2)", ["node", new oracle.OutParam()], function(err, results){
+      if(err) { console.error(err); return; }
+      test.equal(results.returnParam, 42);
+      test.done();
+    });
+  },
+
+  "stored procedures - numeric out param - occinumber": function(test){
+    var self = this;
+    self.connection.execute("call procNumericOutParam(:1,:2)", ["node", new oracle.OutParam(oracle.OCCINUMBER)], function(err, results){
       if(err) { console.error(err); return; }
       test.equal(results.returnParam, 42);
       test.done();
@@ -260,6 +269,16 @@ exports['IntegrationTest'] = nodeunit.testCase({
     self.connection.execute("call procCLOBOutParam(:1)", [new oracle.OutParam(oracle.OCCICLOB)], function(err, results){
       if(err) { console.error(err); return; }
       test.equal(results.returnParam, "IAMCLOB");
+      test.done();
+    });
+  },
+
+  "stored procedures - date timestamp out param": function(test){
+    var self = this;
+    self.connection.execute("call procDateTimeOutParam(:1, :2)", [new oracle.OutParam(oracle.OCCIDATE), new oracle.OutParam(oracle.OCCITIMESTAMP)], function(err, results){
+      if(err) { console.error(err); return; }
+      var d = new Date();
+      test.equal(results.returnParam.getFullYear(), d.getFullYear());
       test.done();
     });
   },

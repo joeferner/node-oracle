@@ -189,6 +189,15 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
           case OutParam::OCCICLOB:
             stmt->registerOutParam(index, oracle::occi::OCCICLOB);
             break;
+          case OutParam::OCCIDATE:
+            stmt->registerOutParam(index, oracle::occi::OCCIDATE);
+            break;
+          case OutParam::OCCITIMESTAMP:
+            stmt->registerOutParam(index, oracle::occi::OCCITIMESTAMP);
+            break;
+          case OutParam::OCCINUMBER:
+            stmt->registerOutParam(index, oracle::occi::OCCINUMBER);
+            break;
           default:
             throw NodeOracleException("SetValuesOnStatement: Unknown OutParam type: " + outParamType);
         }
@@ -365,6 +374,15 @@ void Connection::EIO_Execute(uv_work_t* req) {
             break;
           case OutParam::OCCICLOB:
             output->clobVal = stmt->getClob(output->index);
+            break;
+          case OutParam::OCCIDATE:
+            output->dateVal = stmt->getDate(output->index);
+            break;
+          case OutParam::OCCITIMESTAMP:
+            output->timestampVal = stmt->getTimestamp(output->index);
+            break;
+          case OutParam::OCCINUMBER:
+            output->numberVal = stmt->getNumber(output->index);
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);
@@ -587,6 +605,15 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
             output->clobVal.close();
             obj->Set(String::New(returnParam.c_str()), String::New(buffer, clobLength));
             delete buffer;
+            break;
+          case OutParam::OCCIDATE:
+            obj->Set(String::New(returnParam.c_str()), OracleDateToV8Date(&output->dateVal));
+            break;
+          case OutParam::OCCITIMESTAMP:
+            obj->Set(String::New(returnParam.c_str()), OracleTimestampToV8Date(&output->timestampVal));
+            break;
+          case OutParam::OCCINUMBER:
+            obj->Set(String::New(returnParam.c_str()), Number::New(output->numberVal));
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);

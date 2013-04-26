@@ -51,6 +51,9 @@ struct output_t {
   std::vector<row_t*>* rows;
   std::vector<column_t*> columns;
   oracle::occi::Clob clobVal;
+  oracle::occi::Date dateVal;
+  oracle::occi::Timestamp timestampVal;
+  oracle::occi::Number numberVal;
 };
 
 class ExecuteBaton {
