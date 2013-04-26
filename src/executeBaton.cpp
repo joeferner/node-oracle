@@ -103,7 +103,7 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
 
       output_t* output = new output_t();
       output->type = p->type();
-      output->index = i;
+      output->index = i + 1;
       baton->outputs->push_back(output);
     }
 

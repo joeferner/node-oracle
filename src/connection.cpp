@@ -336,17 +336,17 @@ void Connection::EIO_Execute(uv_work_t* req) {
           output_t* output = *iterator;
           switch(output->type) {
           case OutParam::OCCIINT:
-            output->intVal = stmt->getInt(outputParam); 
+            output->intVal = stmt->getInt(output->index); 
             break;
           case OutParam::OCCISTRING:
             output->ret = (const void*) new string;
-            output->ret = stmt->getString(outputParam).c_str();
+            output->ret = stmt->getString(output->index).c_str();
             break;
           case OutParam::OCCIDOUBLE:
-            output->doubleVal = stmt->getDouble(outputParam);
+            output->doubleVal = stmt->getDouble(output->index);
             break;
           case OutParam::OCCIFLOAT:
-            output->floatVal = stmt->getFloat(outputParam);
+            output->floatVal = stmt->getFloat(output->index);
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);
@@ -526,22 +526,31 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
       } else {
         Local<Object> obj = Object::New();
         obj->Set(String::New("updateCount"), Integer::New(baton->updateCount));
-
-        // TODO - how to handle multpile output params from occi statements
-        for (std::vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator) {
+        
+        /* Note: attempt to keep backward compatability here: existing users of this library will have code that expects a single out param
+                 called 'returnParam'. For multiple out params, the first output will continue to be called 'returnParam' and subsequent outputs
+                 will be called 'returnParamX'.
+        */
+        uint32_t index = 0;
+        for (std::vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator, index++) {
           output_t* output = *iterator;
+          std::stringstream ss;          
+          ss << "returnParam";
+          if(index > 0) ss << index;
+          std::string returnParam(ss.str());
+
           switch(output->type) {
           case OutParam::OCCIINT:
-            obj->Set(String::New("returnParam"), Integer::New(output->intVal));
+            obj->Set(String::New(returnParam.c_str()), Integer::New(output->intVal));
             break;
           case OutParam::OCCISTRING:
-            obj->Set(String::New("returnParam"), String::New((const char*)output->ret));
+            obj->Set(String::New(returnParam.c_str()), String::New((const char*)output->ret));
             break;
           case OutParam::OCCIDOUBLE:
-            obj->Set(String::New("returnParam"), Number::New(output->doubleVal));
+            obj->Set(String::New(returnParam.c_str()), Number::New(output->doubleVal));
             break;
           case OutParam::OCCIFLOAT:
-            obj->Set(String::New("returnParam"), Number::New(output->floatVal));
+            obj->Set(String::New(returnParam.c_str()), Number::New(output->floatVal));
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);

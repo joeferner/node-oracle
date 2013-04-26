@@ -66,6 +66,14 @@
     outParam1 := 43;
   END;
   /
+
+  CREATE OR REPLACE PROCEDURE procTwoOutParams(param1 IN VARCHAR2, outParam1 OUT NUMBER, outParam2 OUT STRING)
+  IS
+  BEGIN
+    outParam1 := 42;
+    outParam2 := 'Hello ' || param1;
+  END;
+  /
 */
 
 var nodeunit = require("nodeunit");
@@ -216,6 +224,17 @@ exports['IntegrationTest'] = nodeunit.testCase({
       if(err) { console.error(err); return; }
       // purposely commented, gotta love floats in javasctipt: http://stackoverflow.com/questions/588004/is-javascripts-floating-point-math-broken
       // test.equal(results.returnParam, 43);
+      test.done();
+    });
+  },
+
+  "stored procedures - multiple out params": function(test){
+    var self = this;
+    var out = 0;
+    self.connection.execute("call procTwoOutParams(:1,:2,:3)", ["node", new oracle.OutParam(oracle.OCCIINT), new oracle.OutParam(oracle.OCCISTRING)], function(err, results){
+      if(err) { console.error(err); return; }
+      test.equal(results.returnParam, 42);
+      test.equal(results.returnParam1, "Hello node");
       test.done();
     });
   },
