@@ -81,6 +81,12 @@
     select * from person;
   END;
   /
+  CREATE OR REPLACE PROCEDURE procCLOBOutParam(outParam OUT CLOB)
+  IS
+  BEGIN
+    outParam := 'IAMCLOB';
+  END;
+  /
 */
 
 var nodeunit = require("nodeunit");
@@ -245,6 +251,15 @@ exports['IntegrationTest'] = nodeunit.testCase({
     self.connection.execute("call procCursorOutParam(:1)", [new oracle.OutParam(oracle.OCCICURSOR)], function(err, results){
       if(err) { console.error(err); return; }
       test.equal(results.returnParam.length, 0);
+      test.done();
+    });
+  },
+
+  "stored procedures - clob out param": function(test){
+    var self = this;
+    self.connection.execute("call procCLOBOutParam(:1)", [new oracle.OutParam(oracle.OCCICLOB)], function(err, results){
+      if(err) { console.error(err); return; }
+      test.equal(results.returnParam, "IAMCLOB");
       test.done();
     });
   },

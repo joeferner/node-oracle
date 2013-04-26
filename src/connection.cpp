@@ -186,6 +186,9 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
           case OutParam::OCCICURSOR:
             stmt->registerOutParam(index, oracle::occi::OCCICURSOR);
             break;
+          case OutParam::OCCICLOB:
+            stmt->registerOutParam(index, oracle::occi::OCCICLOB);
+            break;
           default:
             throw NodeOracleException("SetValuesOnStatement: Unknown OutParam type: " + outParamType);
         }
@@ -355,11 +358,13 @@ void Connection::EIO_Execute(uv_work_t* req) {
             rs = stmt->getCursor(output->index);
             CreateColumnsFromResultSet(rs, output->columns);
             output->rows = new std::vector<row_t*>();
-
             while(rs->next()) {
               row_t* row = CreateRowFromCurrentResultSetRow(rs, output->columns);
               output->rows->push_back(row);
             }
+            break;
+          case OutParam::OCCICLOB:
+            output->clob = stmt->getClob(output->index);
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);
@@ -551,6 +556,9 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
           ss << "returnParam";
           if(index > 0) ss << index;
           std::string returnParam(ss.str());
+          char *buffer; 
+          int clobLength;
+          oracle::occi::Stream *instream;
 
           switch(output->type) {
           case OutParam::OCCIINT:
@@ -567,6 +575,18 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
             break;
           case OutParam::OCCICURSOR:
             obj->Set(String::New(returnParam.c_str()), CreateV8ArrayFromRows(output->columns, output->rows));
+            break;
+          case OutParam::OCCICLOB:
+            output->clob.open(oracle::occi::OCCI_LOB_READONLY);
+            clobLength = output->clob.length();
+            instream = output->clob.getStream(1,0);
+            buffer = new char[clobLength];
+            memset(buffer, (int) NULL, clobLength);
+            instream->readBuffer(buffer, clobLength);
+            output->clob.closeStream(instream);
+            output->clob.close();
+            obj->Set(String::New(returnParam.c_str()), String::New(buffer, clobLength));
+            delete buffer;
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);
