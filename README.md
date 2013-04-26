@@ -40,6 +40,33 @@ oracle.connect({ "hostname": "localhost", "user": "test", "password": "test" }, 
 });
 ```
 
+## Out Params
+
+The following Out Params are supported in Stored Procedures:
+
+```
+
+OCCIINT
+OCCISTRING
+OCCIDOUBLE
+OCCIFLOAT
+OCCICURSOR
+OCCICLOB
+
+```
+
+And can be used as follows:
+
+```
+
+connection.execute("call myProc(:1,:2)", ["nodejs", new oracle.OutParam(oracle.OCCISTRING)], function(err, results){
+  console.dir(results);
+};
+
+```
+
+See tests for more examples.
+
 # Develop
 
 ## Install Oracle/Oracle Express
