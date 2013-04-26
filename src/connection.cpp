@@ -183,6 +183,9 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
           case OutParam::OCCIFLOAT:
             stmt->registerOutParam(index, oracle::occi::OCCIFLOAT);
             break;
+          case OutParam::OCCICURSOR:
+            stmt->registerOutParam(index, oracle::occi::OCCICURSOR);
+            break;
           default:
             throw NodeOracleException("SetValuesOnStatement: Unknown OutParam type: " + outParamType);
         }
@@ -331,9 +334,9 @@ void Connection::EIO_Execute(uv_work_t* req) {
     if(status == oracle::occi::Statement::UPDATE_COUNT_AVAILABLE) {
       baton->updateCount = stmt->getUpdateCount();
       if(outputParam >= 0) {
-        // TODO - how to hanmdle multpile output params from occi statements
         for (std::vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator) {
           output_t* output = *iterator;
+          oracle::occi::ResultSet* rs;
           switch(output->type) {
           case OutParam::OCCIINT:
             output->intVal = stmt->getInt(output->index); 
@@ -347,6 +350,16 @@ void Connection::EIO_Execute(uv_work_t* req) {
             break;
           case OutParam::OCCIFLOAT:
             output->floatVal = stmt->getFloat(output->index);
+            break;
+          case OutParam::OCCICURSOR:
+            rs = stmt->getCursor(output->index);
+            CreateColumnsFromResultSet(rs, output->columns);
+            output->rows = new std::vector<row_t*>();
+
+            while(rs->next()) {
+              row_t* row = CreateRowFromCurrentResultSetRow(rs, output->columns);
+              output->rows->push_back(row);
+            }
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);
@@ -413,10 +426,10 @@ Local<Date> OracleTimestampToV8Date(oracle::occi::Timestamp* d) {
   return date;
 }
 
-Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* currentRow) {
+Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, row_t* currentRow) {
   Local<Object> obj = Object::New();
   uint32_t colIndex = 0;
-  for (std::vector<column_t*>::iterator iterator = baton->columns.begin(), end = baton->columns.end(); iterator != end; ++iterator, colIndex++) {
+  for (std::vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
     column_t* col = *iterator;
     // printf("Column: %s\n", col->name.c_str());
     void* val = currentRow->values[colIndex];
@@ -498,16 +511,16 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* curr
   return obj;
 }
 
-Local<Array> Connection::CreateV8ArrayFromRows(ExecuteBaton* baton) {
-  size_t totalRows = baton->rows->size();
-  Local<Array> rows = Array::New(totalRows);
+Local<Array> Connection::CreateV8ArrayFromRows(std::vector<column_t*> columns, std::vector<row_t*>* rows) {
+  size_t totalRows = rows->size();
+  Local<Array> retRows = Array::New(totalRows);
   uint32_t index = 0;
-  for (std::vector<row_t*>::iterator iterator = baton->rows->begin(), end = baton->rows->end(); iterator != end; ++iterator, index++) {
+  for (std::vector<row_t*>::iterator iterator = rows->begin(), end = rows->end(); iterator != end; ++iterator, index++) {
     row_t* currentRow = *iterator;
-    Local<Object> obj = CreateV8ObjectFromRow(baton, currentRow);
-    rows->Set(index, obj);
+    Local<Object> obj = CreateV8ObjectFromRow(columns, currentRow);
+    retRows->Set(index, obj);
   }
-  return rows;
+  return retRows;
 }
 
 void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
@@ -522,7 +535,7 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
     } else {
       argv[0] = Undefined();
       if(baton->rows) {
-        argv[1] = CreateV8ArrayFromRows(baton);
+        argv[1] = CreateV8ArrayFromRows(baton->columns, baton->rows);
       } else {
         Local<Object> obj = Object::New();
         obj->Set(String::New("updateCount"), Integer::New(baton->updateCount));
@@ -551,6 +564,9 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
             break;
           case OutParam::OCCIFLOAT:
             obj->Set(String::New(returnParam.c_str()), Number::New(output->floatVal));
+            break;
+          case OutParam::OCCICURSOR:
+            obj->Set(String::New(returnParam.c_str()), CreateV8ArrayFromRows(output->columns, output->rows));
             break;
           default:
             throw NodeOracleException("Unknown OutParam type: " + output->type);

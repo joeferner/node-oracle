@@ -48,6 +48,8 @@ struct output_t {
   int intVal;
   double doubleVal;
   float floatVal;
+  std::vector<row_t*>* rows;
+  std::vector<column_t*> columns;
 };
 
 class ExecuteBaton {

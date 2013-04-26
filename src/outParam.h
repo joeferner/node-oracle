@@ -29,6 +29,7 @@ public:
   static const int OCCISTRING = 1;
   static const int OCCIDOUBLE = 2;
   static const int OCCIFLOAT = 3;
+  static const int OCCICURSOR = 4;
 
 private:
 };

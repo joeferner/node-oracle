@@ -74,6 +74,13 @@
     outParam2 := 'Hello ' || param1;
   END;
   /
+  CREATE OR REPLACE PROCEDURE procCursorOutParam(outParam OUT SYS_REFCURSOR)
+  IS
+  BEGIN
+    open outParam for
+    select * from person;
+  END;
+  /
 */
 
 var nodeunit = require("nodeunit");
@@ -179,7 +186,6 @@ exports['IntegrationTest'] = nodeunit.testCase({
 
   "stored procedures - numeric out param": function(test){
     var self = this;
-    var out = 0;
     self.connection.execute("call procNumericOutParam(:1,:2)", ["node", new oracle.OutParam()], function(err, results){
       if(err) { console.error(err); return; }
       test.equal(results.returnParam, 42);
@@ -189,7 +195,6 @@ exports['IntegrationTest'] = nodeunit.testCase({
 
   "stored procedures - string out param": function(test){
     var self = this;
-    var out = 0;
     self.connection.execute("call procStringOutParam(:1,:2)", ["node", new oracle.OutParam(oracle.OCCISTRING)], function(err, results){
       if(err) { console.error(err); return; }
       test.equal(results.returnParam, "Hello node");
@@ -199,7 +204,6 @@ exports['IntegrationTest'] = nodeunit.testCase({
 
   "stored procedures - varchar2 out param": function(test){
     var self = this;
-    var out = 0;
     self.connection.execute("call procVarChar2OutParam(:1,:2)", ["node", new oracle.OutParam(oracle.OCCISTRING, 40)], function(err, results){
       if(err) { console.error(err); return; }
       test.equal(results.returnParam, "Hello node");
@@ -209,7 +213,6 @@ exports['IntegrationTest'] = nodeunit.testCase({
 
   "stored procedures - double out param": function(test){
     var self = this;
-    var out = 0;
     self.connection.execute("call procDoubleOutParam(:1,:2)", ["node", new oracle.OutParam(oracle.OCCIDOUBLE)], function(err, results){
       if(err) { console.error(err); return; }
       test.equal(results.returnParam, -43.123456789012);
@@ -219,7 +222,6 @@ exports['IntegrationTest'] = nodeunit.testCase({
 
   "stored procedures - float out param": function(test){
     var self = this;
-    var out = 0;
     self.connection.execute("call procFloatOutParam(:1,:2)", ["node", new oracle.OutParam(oracle.OCCIFLOAT)], function(err, results){
       if(err) { console.error(err); return; }
       // purposely commented, gotta love floats in javasctipt: http://stackoverflow.com/questions/588004/is-javascripts-floating-point-math-broken
@@ -230,11 +232,19 @@ exports['IntegrationTest'] = nodeunit.testCase({
 
   "stored procedures - multiple out params": function(test){
     var self = this;
-    var out = 0;
     self.connection.execute("call procTwoOutParams(:1,:2,:3)", ["node", new oracle.OutParam(oracle.OCCIINT), new oracle.OutParam(oracle.OCCISTRING)], function(err, results){
       if(err) { console.error(err); return; }
       test.equal(results.returnParam, 42);
       test.equal(results.returnParam1, "Hello node");
+      test.done();
+    });
+  },
+
+  "stored procedures - cursor out param": function(test){
+    var self = this;
+    self.connection.execute("call procCursorOutParam(:1)", [new oracle.OutParam(oracle.OCCICURSOR)], function(err, results){
+      if(err) { console.error(err); return; }
+      test.equal(results.returnParam.length, 0);
       test.done();
     });
   },
