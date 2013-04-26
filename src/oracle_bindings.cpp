@@ -70,7 +70,7 @@ Handle<Value> OracleClient::Connect(const Arguments& args) {
 
   uv_work_t* req = new uv_work_t();
   req->data = baton;
-  uv_queue_work(uv_default_loop(), req, EIO_Connect, EIO_AfterConnect);
+  uv_queue_work(uv_default_loop(), req, EIO_Connect, (uv_after_work_cb)EIO_AfterConnect);
 
   return Undefined();
 }

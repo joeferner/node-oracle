@@ -65,7 +65,7 @@ Handle<Value> Connection::Execute(const Arguments& args) {
 
   uv_work_t* req = new uv_work_t();
   req->data = baton;
-  uv_queue_work(uv_default_loop(), req, EIO_Execute, EIO_AfterExecute);
+  uv_queue_work(uv_default_loop(), req, EIO_Execute, (uv_after_work_cb)EIO_AfterExecute);
 
   connection->Ref();
 
@@ -102,7 +102,7 @@ Handle<Value> Connection::Commit(const Arguments& args) {
 
   uv_work_t* req = new uv_work_t();
   req->data = baton;
-  uv_queue_work(uv_default_loop(), req, EIO_Commit, EIO_AfterCommit);
+  uv_queue_work(uv_default_loop(), req, EIO_Commit, (uv_after_work_cb)EIO_AfterCommit);
 
   connection->Ref();
 
@@ -127,7 +127,7 @@ Handle<Value> Connection::Rollback(const Arguments& args) {
 
   uv_work_t* req = new uv_work_t();
   req->data = baton;
-  uv_queue_work(uv_default_loop(), req, EIO_Rollback, EIO_AfterRollback);
+  uv_queue_work(uv_default_loop(), req, EIO_Rollback, (uv_after_work_cb)EIO_AfterRollback);
 
   connection->Ref();
 
