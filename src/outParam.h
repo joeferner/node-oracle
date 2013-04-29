@@ -34,6 +34,7 @@ public:
   static const int OCCIDATE = 6;
   static const int OCCITIMESTAMP = 7;
   static const int OCCINUMBER = 8;
+  static const int OCCIBLOB = 9;
 
 private:
 };

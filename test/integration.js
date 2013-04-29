@@ -87,6 +87,27 @@
     outParam := 'IAMCLOB';
   END;
   /
+
+  BEGIN
+     EXECUTE IMMEDIATE 'DROP TABLE basic_lob_table';
+  EXCEPTION
+     WHEN OTHERS THEN
+        IF SQLCODE != -942 THEN
+           RAISE;
+        END IF;
+  END;
+  /
+
+  create table basic_lob_table (x varchar2 (30), b blob, c clob);
+  insert into basic_lob_table values('one', '010101010101010101010101010101', 'onetwothreefour');
+  select * from basic_lob_table where x='one' and ROWNUM = 1;
+
+  CREATE OR REPLACE PROCEDURE ReadBasicBLOB (outBlob OUT BLOB)
+  IS
+  BEGIN
+      SELECT b INTO outBlob FROM basic_lob_table where x='one' and ROWNUM = 1;
+  END;
+  /
 */
 
 var nodeunit = require("nodeunit");
@@ -279,6 +300,14 @@ exports['IntegrationTest'] = nodeunit.testCase({
       if(err) { console.error(err); return; }
       var d = new Date();
       test.equal(results.returnParam.getFullYear(), d.getFullYear());
+      test.done();
+    });
+  },
+
+  "stored procedures - blob out param": function(test){
+    var self = this;
+    self.connection.execute("call ReadBasicBLOB(:1)", [new oracle.OutParam(oracle.OCCIBLOB)], function(err, results){
+      if(err) { console.error(err); return; }
       test.done();
     });
   },

@@ -54,6 +54,7 @@ struct output_t {
   oracle::occi::Date dateVal;
   oracle::occi::Timestamp timestampVal;
   oracle::occi::Number numberVal;
+  oracle::occi::Blob blobVal;
 };
 
 class ExecuteBaton {

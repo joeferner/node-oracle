@@ -4,6 +4,7 @@
 #include "commitBaton.h"
 #include "rollbackBaton.h"
 #include "outParam.h"
+#include "node_buffer.h"
 #include <vector>
 #include <node_version.h>
 #include <iostream>
@@ -148,6 +149,11 @@ void Connection::closeConnection() {
   }
 }
 
+
+void RandomBytesFree(char* data, void* hint) {
+  delete[] data;
+}
+
 int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<value_t*> &values) {
   uint32_t index = 1;
   int outputParam = -1;
@@ -197,6 +203,9 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
             break;
           case OutParam::OCCINUMBER:
             stmt->registerOutParam(index, oracle::occi::OCCINUMBER);
+            break;
+          case OutParam::OCCIBLOB:
+            stmt->registerOutParam(index, oracle::occi::OCCIBLOB);
             break;
           default:
             throw NodeOracleException("SetValuesOnStatement: Unknown OutParam type: " + outParamType);
@@ -375,6 +384,9 @@ void Connection::EIO_Execute(uv_work_t* req) {
           case OutParam::OCCICLOB:
             output->clobVal = stmt->getClob(output->index);
             break;
+          case OutParam::OCCIBLOB:
+            output->blobVal = stmt->getBlob(output->index);
+            break;
           case OutParam::OCCIDATE:
             output->dateVal = stmt->getDate(output->index);
             break;
@@ -519,8 +531,25 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
           break;
         case VALUE_TYPE_BLOB:
           {
-            //oracle::occi::Blob* v = (oracle::occi::Blob*)val;
-            obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle blobs
+            oracle::occi::Blob* v = (oracle::occi::Blob*)val;
+            v->open(oracle::occi::OCCI_LOB_READONLY);
+            int blobLength = v->length();
+            oracle::occi::Stream *instream = v->getStream(1,0);
+            char *buffer = new char[blobLength];
+            memset(buffer, (int) NULL, blobLength);
+            instream->readBuffer(buffer, blobLength);
+            v->closeStream(instream);
+            v->close();
+
+            // convert to V8 buffer
+            node::Buffer *nodeBuff = node::Buffer::New(buffer, blobLength, RandomBytesFree, NULL);
+            v8::Local<v8::Object> globalObj = v8::Context::GetCurrent()->Global();
+            v8::Local<v8::Function> bufferConstructor = v8::Local<v8::Function>::Cast(globalObj->Get(v8::String::New("Buffer")));
+            v8::Handle<v8::Value> constructorArgs[3] = { nodeBuff->handle_, v8::Integer::New(blobLength), v8::Integer::New(0) };
+            v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
+            obj->Set(String::New(col->name.c_str()), v8Buffer);
+            delete buffer;            
+            break;
           }
           break;
         default:
@@ -574,10 +603,6 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
           ss << "returnParam";
           if(index > 0) ss << index;
           std::string returnParam(ss.str());
-          char *buffer; 
-          int clobLength;
-          oracle::occi::Stream *instream;
-
           switch(output->type) {
           case OutParam::OCCIINT:
             obj->Set(String::New(returnParam.c_str()), Integer::New(output->intVal));
@@ -595,17 +620,40 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
             obj->Set(String::New(returnParam.c_str()), CreateV8ArrayFromRows(output->columns, output->rows));
             break;
           case OutParam::OCCICLOB:
-            output->clobVal.open(oracle::occi::OCCI_LOB_READONLY);
-            clobLength = output->clobVal.length();
-            instream = output->clobVal.getStream(1,0);
-            buffer = new char[clobLength];
-            memset(buffer, (int) NULL, clobLength);
-            instream->readBuffer(buffer, clobLength);
-            output->clobVal.closeStream(instream);
-            output->clobVal.close();
-            obj->Set(String::New(returnParam.c_str()), String::New(buffer, clobLength));
-            delete buffer;
-            break;
+            {
+              output->clobVal.open(oracle::occi::OCCI_LOB_READONLY);
+              int lobLength = output->clobVal.length();
+              oracle::occi::Stream* instream = output->clobVal.getStream(1,0);
+              char *buffer = new char[lobLength];
+              memset(buffer, (int) NULL, lobLength);
+              instream->readBuffer(buffer, lobLength);
+              output->clobVal.closeStream(instream);
+              output->clobVal.close();
+              obj->Set(String::New(returnParam.c_str()), String::New(buffer, lobLength));
+              delete buffer;
+              break;
+            }
+          case OutParam::OCCIBLOB:
+            { 
+              output->blobVal.open(oracle::occi::OCCI_LOB_READONLY);
+              int lobLength = output->blobVal.length();
+              oracle::occi::Stream* instream = output->blobVal.getStream(1,0);              
+              char *buffer = new char[lobLength];
+              memset(buffer, (int) NULL, lobLength);
+              instream->readBuffer(buffer, lobLength);
+              output->blobVal.closeStream(instream);
+              output->blobVal.close();
+
+              // convert to V8 buffer
+              node::Buffer *nodeBuff = node::Buffer::New(buffer, lobLength, RandomBytesFree, NULL);
+              v8::Local<v8::Object> globalObj = v8::Context::GetCurrent()->Global();
+              v8::Local<v8::Function> bufferConstructor = v8::Local<v8::Function>::Cast(globalObj->Get(v8::String::New("Buffer")));
+              v8::Handle<v8::Value> constructorArgs[3] = { nodeBuff->handle_, v8::Integer::New(lobLength), v8::Integer::New(0) };
+              v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
+              obj->Set(String::New(returnParam.c_str()), v8Buffer);
+              delete buffer;            
+              break;
+            }
           case OutParam::OCCIDATE:
             obj->Set(String::New(returnParam.c_str()), OracleDateToV8Date(&output->dateVal));
             break;
