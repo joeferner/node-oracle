@@ -68,7 +68,42 @@ connection.execute("call myProc(:1,:2)", ["nodejs", new oracle.OutParam(oracle.O
 
 ```
 
+When using Strings as Out Params, the size can be optionally specified as follows:
+
+```
+
+connection.execute("call myProc(:1,:2)", ["nodejs", new oracle.OutParam(oracle.OCCISTRING, {size: 1000})], function(err, results){
+
+```
+
+If no size is specified, a default size of 200 chars is used.
+
 See tests for more examples.
+
+## In/Out Params
+
+The following INOUT param types are supported:
+
+```
+
+OCCIINT
+OCCISTRING
+OCCIDOUBLE
+OCCIFLOAT
+OCCINUMBER
+
+```
+
+INOUT params are used like normal OUT prams, with the optional 'in' paramater value being passed in the options object:
+
+```
+
+connection.execute("call myProc(:1)", [new oracle.OutParam(oracle.OCCIINT, {in: 42})], function(err, results){
+  console.dir(results);
+};
+
+```
+
 
 # Develop
 

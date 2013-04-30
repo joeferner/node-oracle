@@ -44,7 +44,7 @@ struct value_t {
 struct output_t {
   int type;
   int index;
-  const char* strVal; 
+  std::string strVal; 
   int intVal;
   double doubleVal;
   float floatVal;

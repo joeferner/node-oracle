@@ -8,9 +8,21 @@
   #include <unistd.h>
 #endif
 #include "utils.h"
+#include <occi.h>
 
 using namespace node;
 using namespace v8;
+
+struct inout_t {
+  bool hasInParam;
+  const char* stringVal; 
+  int intVal;
+  double doubleVal;
+  float floatVal;
+  oracle::occi::Date dateVal;
+  oracle::occi::Timestamp timestampVal;
+  oracle::occi::Number numberVal;
+};
 
 class OutParam : ObjectWrap {
 public:
@@ -20,6 +32,7 @@ public:
   static v8::Handle<v8::Value> GetType(const v8::Arguments& args);
   int _type;
   int _size;
+  inout_t _inOut;
   OutParam();
   ~OutParam();
   
