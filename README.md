@@ -40,6 +40,72 @@ oracle.connect({ "hostname": "localhost", "user": "test", "password": "test" }, 
 });
 ```
 
+## Out Params
+
+The following Out Params are supported in Stored Procedures:
+
+```
+
+OCCIINT
+OCCISTRING
+OCCIDOUBLE
+OCCIFLOAT
+OCCICURSOR
+OCCICLOB
+OCCIDATE
+OCCITIMESTAMP
+OCCINUMBER
+OCCIBLOB
+
+```
+
+And can be used as follows:
+
+```
+
+connection.execute("call myProc(:1,:2)", ["nodejs", new oracle.OutParam(oracle.OCCISTRING)], function(err, results){
+  console.dir(results);
+};
+
+```
+
+When using Strings as Out Params, the size can be optionally specified as follows:
+
+```
+
+connection.execute("call myProc(:1,:2)", ["nodejs", new oracle.OutParam(oracle.OCCISTRING, {size: 1000})], function(err, results){
+
+```
+
+If no size is specified, a default size of 200 chars is used.
+
+See tests for more examples.
+
+## In/Out Params
+
+The following INOUT param types are supported:
+
+```
+
+OCCIINT
+OCCISTRING
+OCCIDOUBLE
+OCCIFLOAT
+OCCINUMBER
+
+```
+
+INOUT params are used like normal OUT prams, with the optional 'in' paramater value being passed in the options object:
+
+```
+
+connection.execute("call myProc(:1)", [new oracle.OutParam(oracle.OCCIINT, {in: 42})], function(err, results){
+  console.dir(results);
+};
+
+```
+
+
 # Develop
 
 ## Install Oracle/Oracle Express

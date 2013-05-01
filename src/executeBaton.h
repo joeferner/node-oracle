@@ -41,6 +41,22 @@ struct value_t {
   void* value;
 };
 
+struct output_t {
+  int type;
+  int index;
+  std::string strVal; 
+  int intVal;
+  double doubleVal;
+  float floatVal;
+  std::vector<row_t*>* rows;
+  std::vector<column_t*> columns;
+  oracle::occi::Clob clobVal;
+  oracle::occi::Date dateVal;
+  oracle::occi::Timestamp timestampVal;
+  oracle::occi::Number numberVal;
+  oracle::occi::Blob blobVal;
+};
+
 class ExecuteBaton {
 public:
   ExecuteBaton(Connection* connection, const char* sql, v8::Local<v8::Array>* values, v8::Handle<v8::Function>* callback);
@@ -52,9 +68,9 @@ public:
   std::string sql;
   std::vector<column_t*> columns;
   std::vector<row_t*>* rows;
+  std::vector<output_t*>* outputs;
   std::string* error;
   int updateCount;
-  int* returnParam;
 
 private:
   static void CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* values);

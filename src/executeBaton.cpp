@@ -3,12 +3,14 @@
 #include "outParam.h"
 #include "nodeOracleException.h"
 #include "connection.h"
+#include <iostream>
+using namespace std;
 
 ExecuteBaton::ExecuteBaton(Connection* connection, const char* sql, v8::Local<v8::Array>* values, v8::Handle<v8::Function>* callback) {
   this->connection = connection;
   this->sql = sql;
   this->callback = Persistent<Function>::New(*callback);
-  this->returnParam = NULL;
+  this->outputs = new std::vector<output_t*>();
   CopyValuesToBaton(this, values);
 }
 
@@ -34,6 +36,14 @@ ExecuteBaton::~ExecuteBaton() {
       delete currentRow;
     }
     delete rows;
+  }
+
+  if(outputs) {
+    for (std::vector<output_t*>::iterator iterator = outputs->begin(), end = outputs->end(); iterator != end; ++iterator) {
+      output_t* o = *iterator;
+      delete o;
+    }
+    delete outputs;
   }
 
   if(error) delete error;
@@ -94,9 +104,15 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
 
     // output
     else if(val->IsObject() && val->ToObject()->FindInstanceInPrototypeChain(OutParam::constructorTemplate) != v8::Null()) {
+      OutParam* p = node::ObjectWrap::Unwrap<OutParam>(val->ToObject());
       value->type = VALUE_TYPE_OUTPUT;
-      value->value = NULL;
+      value->value = p; 
       baton->values.push_back(value);
+
+      output_t* output = new output_t();
+      output->type = p->type();
+      output->index = i + 1;
+      baton->outputs->push_back(output);
     }
 
     // unhandled type

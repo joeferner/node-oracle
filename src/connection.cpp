@@ -1,11 +1,14 @@
-
+#include <string.h>
 #include "connection.h"
 #include "executeBaton.h"
 #include "commitBaton.h"
 #include "rollbackBaton.h"
 #include "outParam.h"
+#include "node_buffer.h"
 #include <vector>
 #include <node_version.h>
+#include <iostream>
+using namespace std;
 
 Persistent<FunctionTemplate> Connection::constructorTemplate;
 
@@ -63,7 +66,7 @@ Handle<Value> Connection::Execute(const Arguments& args) {
 
   uv_work_t* req = new uv_work_t();
   req->data = baton;
-  uv_queue_work(uv_default_loop(), req, EIO_Execute, EIO_AfterExecute);
+  uv_queue_work(uv_default_loop(), req, EIO_Execute, (uv_after_work_cb)EIO_AfterExecute);
 
   connection->Ref();
 
@@ -100,7 +103,7 @@ Handle<Value> Connection::Commit(const Arguments& args) {
 
   uv_work_t* req = new uv_work_t();
   req->data = baton;
-  uv_queue_work(uv_default_loop(), req, EIO_Commit, EIO_AfterCommit);
+  uv_queue_work(uv_default_loop(), req, EIO_Commit, (uv_after_work_cb)EIO_AfterCommit);
 
   connection->Ref();
 
@@ -125,7 +128,7 @@ Handle<Value> Connection::Rollback(const Arguments& args) {
 
   uv_work_t* req = new uv_work_t();
   req->data = baton;
-  uv_queue_work(uv_default_loop(), req, EIO_Rollback, EIO_AfterRollback);
+  uv_queue_work(uv_default_loop(), req, EIO_Rollback, (uv_after_work_cb)EIO_AfterRollback);
 
   connection->Ref();
 
@@ -146,11 +149,17 @@ void Connection::closeConnection() {
   }
 }
 
+void RandomBytesFree(char* data, void* hint) {
+  delete[] data;
+}
+
 int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<value_t*> &values) {
   uint32_t index = 1;
   int outputParam = -1;
   for (std::vector<value_t*>::iterator iterator = values.begin(), end = values.end(); iterator != end; ++iterator, index++) {
     value_t* val = *iterator;
+    int outParamType;
+
     switch(val->type) {
       case VALUE_TYPE_NULL:
         stmt->setNull(index, oracle::occi::OCCISTRING);
@@ -164,8 +173,64 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
       case VALUE_TYPE_DATE:
         stmt->setDate(index, *((oracle::occi::Date*)val->value));
         break;
-      case VALUE_TYPE_OUTPUT:
-        stmt->registerOutParam(index, oracle::occi::OCCIINT);
+      case VALUE_TYPE_OUTPUT:        
+        outParamType = ((OutParam*)val->value)->type();
+        switch(outParamType) {
+          case OutParam::OCCIINT:
+            if (((OutParam*)val->value)->_inOut.hasInParam) {
+              stmt->setInt(index, ((OutParam*)val->value)->_inOut.intVal);
+            }else {
+              stmt->registerOutParam(index, oracle::occi::OCCIINT);
+            }
+            break;
+          case OutParam::OCCISTRING:
+            if (((OutParam*)val->value)->_inOut.hasInParam) {
+              stmt->setString(index, ((OutParam*)val->value)->_inOut.stringVal);
+            }else {
+              stmt->registerOutParam(index, oracle::occi::OCCISTRING, ((OutParam*)val->value)->size());
+            }
+            break;
+          case OutParam::OCCIDOUBLE:
+            if (((OutParam*)val->value)->_inOut.hasInParam) {
+              stmt->setDouble(index, ((OutParam*)val->value)->_inOut.doubleVal);
+            }else {
+              stmt->registerOutParam(index, oracle::occi::OCCIDOUBLE);
+            }
+            break;
+          case OutParam::OCCIFLOAT:
+            if (((OutParam*)val->value)->_inOut.hasInParam) {
+              stmt->setFloat(index, ((OutParam*)val->value)->_inOut.floatVal);
+            }else {
+              stmt->registerOutParam(index, oracle::occi::OCCIFLOAT);
+            }
+            break;
+          case OutParam::OCCICURSOR:
+            stmt->registerOutParam(index, oracle::occi::OCCICURSOR);
+            break;
+          case OutParam::OCCICLOB:
+            stmt->registerOutParam(index, oracle::occi::OCCICLOB);
+            break;
+          case OutParam::OCCIDATE:
+            stmt->registerOutParam(index, oracle::occi::OCCIDATE);
+            break;
+          case OutParam::OCCITIMESTAMP:
+            stmt->registerOutParam(index, oracle::occi::OCCITIMESTAMP);
+            break;
+          case OutParam::OCCINUMBER:
+            {
+              if (((OutParam*)val->value)->_inOut.hasInParam) {
+                stmt->setNumber(index, ((OutParam*)val->value)->_inOut.numberVal);
+              } else {
+                stmt->registerOutParam(index, oracle::occi::OCCINUMBER);
+              }
+            break;
+            }
+          case OutParam::OCCIBLOB:
+            stmt->registerOutParam(index, oracle::occi::OCCIBLOB);
+            break;
+          default:
+            throw NodeOracleException("SetValuesOnStatement: Unknown OutParam type: " + outParamType);
+        }
         outputParam = index;
         break;
       default:
@@ -303,7 +368,6 @@ void Connection::EIO_Execute(uv_work_t* req) {
   oracle::occi::Statement* stmt = NULL;
   oracle::occi::ResultSet* rs = NULL;
   try {
-    //printf("%s\n", baton->sql.c_str());
     stmt = baton->connection->m_connection->createStatement(baton->sql);
     stmt->setAutoCommit(baton->connection->m_autoCommit);
     int outputParam = SetValuesOnStatement(stmt, baton->values);
@@ -312,8 +376,50 @@ void Connection::EIO_Execute(uv_work_t* req) {
     if(status == oracle::occi::Statement::UPDATE_COUNT_AVAILABLE) {
       baton->updateCount = stmt->getUpdateCount();
       if(outputParam >= 0) {
-        baton->returnParam = new int;
-        *(baton->returnParam) = stmt->getInt(outputParam);
+        for (std::vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator) {
+          output_t* output = *iterator;
+          oracle::occi::ResultSet* rs;
+          switch(output->type) {
+          case OutParam::OCCIINT:
+            output->intVal = stmt->getInt(output->index); 
+            break;
+          case OutParam::OCCISTRING:
+            output->strVal = std::string(stmt->getString(output->index));
+            break;
+          case OutParam::OCCIDOUBLE:
+            output->doubleVal = stmt->getDouble(output->index);
+            break;
+          case OutParam::OCCIFLOAT:
+            output->floatVal = stmt->getFloat(output->index);
+            break;
+          case OutParam::OCCICURSOR:
+            rs = stmt->getCursor(output->index);
+            CreateColumnsFromResultSet(rs, output->columns);
+            output->rows = new std::vector<row_t*>();
+            while(rs->next()) {
+              row_t* row = CreateRowFromCurrentResultSetRow(rs, output->columns);
+              output->rows->push_back(row);
+            }
+            break;
+          case OutParam::OCCICLOB:
+            output->clobVal = stmt->getClob(output->index);
+            break;
+          case OutParam::OCCIBLOB:
+            output->blobVal = stmt->getBlob(output->index);
+            break;
+          case OutParam::OCCIDATE:
+            output->dateVal = stmt->getDate(output->index);
+            break;
+          case OutParam::OCCITIMESTAMP:
+            output->timestampVal = stmt->getTimestamp(output->index);
+            break;
+          case OutParam::OCCINUMBER:
+            output->numberVal = stmt->getNumber(output->index);
+            break;
+          default:
+            throw NodeOracleException("Unknown OutParam type: " + output->type);
+          }          
+        }
       }
     } else {
       rs = stmt->executeQuery();
@@ -375,10 +481,10 @@ Local<Date> OracleTimestampToV8Date(oracle::occi::Timestamp* d) {
   return date;
 }
 
-Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* currentRow) {
+Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, row_t* currentRow) {
   Local<Object> obj = Object::New();
   uint32_t colIndex = 0;
-  for (std::vector<column_t*>::iterator iterator = baton->columns.begin(), end = baton->columns.end(); iterator != end; ++iterator, colIndex++) {
+  for (std::vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
     column_t* col = *iterator;
     // printf("Column: %s\n", col->name.c_str());
     void* val = currentRow->values[colIndex];
@@ -435,7 +541,7 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* curr
             int clobLength = v->length();
             oracle::occi::Stream *instream = v->getStream(1,0);
             char *buffer = new char[clobLength];
-            memset(buffer, (int) NULL, clobLength);
+            memset(buffer, 0, clobLength);
             instream->readBuffer(buffer, clobLength);
             v->closeStream(instream);
             v->close();
@@ -445,8 +551,25 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* curr
           break;
         case VALUE_TYPE_BLOB:
           {
-            //oracle::occi::Blob* v = (oracle::occi::Blob*)val;
-            obj->Set(String::New(col->name.c_str()), Null()); // TODO: handle blobs
+            oracle::occi::Blob* v = (oracle::occi::Blob*)val;
+            v->open(oracle::occi::OCCI_LOB_READONLY);
+            int blobLength = v->length();
+            oracle::occi::Stream *instream = v->getStream(1,0);
+            char *buffer = new char[blobLength];
+            memset(buffer, 0, blobLength);
+            instream->readBuffer(buffer, blobLength);
+            v->closeStream(instream);
+            v->close();
+
+            // convert to V8 buffer
+            node::Buffer *nodeBuff = node::Buffer::New(buffer, blobLength, RandomBytesFree, NULL);
+            v8::Local<v8::Object> globalObj = v8::Context::GetCurrent()->Global();
+            v8::Local<v8::Function> bufferConstructor = v8::Local<v8::Function>::Cast(globalObj->Get(v8::String::New("Buffer")));
+            v8::Handle<v8::Value> constructorArgs[3] = { nodeBuff->handle_, v8::Integer::New(blobLength), v8::Integer::New(0) };
+            v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
+            obj->Set(String::New(col->name.c_str()), v8Buffer);
+            delete buffer;            
+            break;
           }
           break;
         default:
@@ -460,23 +583,22 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, row_t* curr
   return obj;
 }
 
-Local<Array> Connection::CreateV8ArrayFromRows(ExecuteBaton* baton) {
-  size_t totalRows = baton->rows->size();
-  Local<Array> rows = Array::New(totalRows);
+Local<Array> Connection::CreateV8ArrayFromRows(std::vector<column_t*> columns, std::vector<row_t*>* rows) {
+  size_t totalRows = rows->size();
+  Local<Array> retRows = Array::New(totalRows);
   uint32_t index = 0;
-  for (std::vector<row_t*>::iterator iterator = baton->rows->begin(), end = baton->rows->end(); iterator != end; ++iterator, index++) {
+  for (std::vector<row_t*>::iterator iterator = rows->begin(), end = rows->end(); iterator != end; ++iterator, index++) {
     row_t* currentRow = *iterator;
-    Local<Object> obj = CreateV8ObjectFromRow(baton, currentRow);
-    rows->Set(index, obj);
+    Local<Object> obj = CreateV8ObjectFromRow(columns, currentRow);
+    retRows->Set(index, obj);
   }
-  return rows;
+  return retRows;
 }
 
 void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
 
   baton->connection->Unref();
-
   try {
     Handle<Value> argv[2];
     if(baton->error) {
@@ -485,13 +607,85 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
     } else {
       argv[0] = Undefined();
       if(baton->rows) {
-        argv[1] = CreateV8ArrayFromRows(baton);
+        argv[1] = CreateV8ArrayFromRows(baton->columns, baton->rows);
       } else {
         Local<Object> obj = Object::New();
         obj->Set(String::New("updateCount"), Integer::New(baton->updateCount));
-        if(baton->returnParam) {
-          obj->Set(String::New("returnParam"), Integer::New(*baton->returnParam));
-          delete baton->returnParam;
+        
+        /* Note: attempt to keep backward compatability here: existing users of this library will have code that expects a single out param
+                 called 'returnParam'. For multiple out params, the first output will continue to be called 'returnParam' and subsequent outputs
+                 will be called 'returnParamX'.
+        */
+        uint32_t index = 0;
+        for (std::vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator, index++) {
+          output_t* output = *iterator;
+          std::stringstream ss;          
+          ss << "returnParam";
+          if(index > 0) ss << index;
+          std::string returnParam(ss.str());
+          switch(output->type) {
+          case OutParam::OCCIINT:
+            obj->Set(String::New(returnParam.c_str()), Integer::New(output->intVal));
+            break;
+          case OutParam::OCCISTRING:
+            obj->Set(String::New(returnParam.c_str()), String::New(output->strVal.c_str()));
+            break;
+          case OutParam::OCCIDOUBLE:
+            obj->Set(String::New(returnParam.c_str()), Number::New(output->doubleVal));
+            break;
+          case OutParam::OCCIFLOAT:
+            obj->Set(String::New(returnParam.c_str()), Number::New(output->floatVal));
+            break;
+          case OutParam::OCCICURSOR:
+            obj->Set(String::New(returnParam.c_str()), CreateV8ArrayFromRows(output->columns, output->rows));
+            break;
+          case OutParam::OCCICLOB:
+            {
+              output->clobVal.open(oracle::occi::OCCI_LOB_READONLY);
+              int lobLength = output->clobVal.length();
+              oracle::occi::Stream* instream = output->clobVal.getStream(1,0);
+              char *buffer = new char[lobLength];
+              memset(buffer, 0, lobLength);
+              instream->readBuffer(buffer, lobLength);
+              output->clobVal.closeStream(instream);
+              output->clobVal.close();
+              obj->Set(String::New(returnParam.c_str()), String::New(buffer, lobLength));
+              delete buffer;
+              break;
+            }
+          case OutParam::OCCIBLOB:
+            { 
+              output->blobVal.open(oracle::occi::OCCI_LOB_READONLY);
+              int lobLength = output->blobVal.length();
+              oracle::occi::Stream* instream = output->blobVal.getStream(1,0);              
+              char *buffer = new char[lobLength];
+              memset(buffer, 0, lobLength);
+              instream->readBuffer(buffer, lobLength);
+              output->blobVal.closeStream(instream);
+              output->blobVal.close();
+
+              // convert to V8 buffer
+              node::Buffer *nodeBuff = node::Buffer::New(buffer, lobLength, RandomBytesFree, NULL);
+              v8::Local<v8::Object> globalObj = v8::Context::GetCurrent()->Global();
+              v8::Local<v8::Function> bufferConstructor = v8::Local<v8::Function>::Cast(globalObj->Get(v8::String::New("Buffer")));
+              v8::Handle<v8::Value> constructorArgs[3] = { nodeBuff->handle_, v8::Integer::New(lobLength), v8::Integer::New(0) };
+              v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
+              obj->Set(String::New(returnParam.c_str()), v8Buffer);
+              delete buffer;            
+              break;
+            }
+          case OutParam::OCCIDATE:
+            obj->Set(String::New(returnParam.c_str()), OracleDateToV8Date(&output->dateVal));
+            break;
+          case OutParam::OCCITIMESTAMP:
+            obj->Set(String::New(returnParam.c_str()), OracleTimestampToV8Date(&output->timestampVal));
+            break;
+          case OutParam::OCCINUMBER:
+            obj->Set(String::New(returnParam.c_str()), Number::New(output->numberVal));
+            break;
+          default:
+            throw NodeOracleException("Unknown OutParam type: " + output->type);
+          }          
         }
         argv[1] = obj;
       }
