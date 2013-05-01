@@ -29,7 +29,6 @@ public:
   static void Init(Handle<Object> target);
   static Handle<Value> New(const Arguments& args);
   static Persistent<FunctionTemplate> constructorTemplate;
-  static v8::Handle<v8::Value> GetType(const v8::Arguments& args);
   int _type;
   int _size;
   inout_t _inOut;

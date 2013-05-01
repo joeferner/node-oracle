@@ -97,7 +97,7 @@ var oracle = require("../");
 
 var settings = JSON.parse(require('fs').readFileSync('./tests-settings.json','utf8'));
 
-exports['IntegrationTest'] = nodeunit.testCase({
+exports['OutParamsTest'] = nodeunit.testCase({
   setUp: function(callback) {
     var self = this;
     oracle.connect(settings, function(err, connection) {

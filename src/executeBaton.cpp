@@ -38,6 +38,14 @@ ExecuteBaton::~ExecuteBaton() {
     delete rows;
   }
 
+  if(outputs) {
+    for (std::vector<output_t*>::iterator iterator = outputs->begin(), end = outputs->end(); iterator != end; ++iterator) {
+      output_t* o = *iterator;
+      delete o;
+    }
+    delete outputs;
+  }
+
   if(error) delete error;
 }
 

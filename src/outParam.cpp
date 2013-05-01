@@ -13,8 +13,6 @@ void OutParam::Init(Handle<Object> target) {
   constructorTemplate = Persistent<FunctionTemplate>::New(t);
   constructorTemplate->InstanceTemplate()->SetInternalFieldCount(1);
   constructorTemplate->SetClassName(String::NewSymbol("OutParam"));
-
-  t->PrototypeTemplate()->Set(String::NewSymbol("getType"), FunctionTemplate::New(GetType)->GetFunction());
   target->Set(String::NewSymbol("OutParam"), constructorTemplate->GetFunction());
 }
 
@@ -63,16 +61,10 @@ Handle<Value> OutParam::New(const Arguments& args) {
 
 OutParam::OutParam() {
   _inOut.hasInParam = false;
+  _size = 200;
 }
 
 OutParam::~OutParam() {
-}
-
-Handle<Value> OutParam::GetType(const Arguments& args) {
-  HandleScope scope;
-  OutParam* obj = ObjectWrap::Unwrap<OutParam>(args.This());
-
-  return scope.Close(Number::New(obj->_type));
 }
 
 int OutParam::type() {

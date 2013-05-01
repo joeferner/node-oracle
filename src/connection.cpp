@@ -384,7 +384,7 @@ void Connection::EIO_Execute(uv_work_t* req) {
             output->intVal = stmt->getInt(output->index); 
             break;
           case OutParam::OCCISTRING:
-            output->strVal = stmt->getString(output->index);
+            output->strVal = std::string(stmt->getString(output->index));
             break;
           case OutParam::OCCIDOUBLE:
             output->doubleVal = stmt->getDouble(output->index);
@@ -541,7 +541,7 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
             int clobLength = v->length();
             oracle::occi::Stream *instream = v->getStream(1,0);
             char *buffer = new char[clobLength];
-            memset(buffer, (int) NULL, clobLength);
+            memset(buffer, 0, clobLength);
             instream->readBuffer(buffer, clobLength);
             v->closeStream(instream);
             v->close();
@@ -556,7 +556,7 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
             int blobLength = v->length();
             oracle::occi::Stream *instream = v->getStream(1,0);
             char *buffer = new char[blobLength];
-            memset(buffer, (int) NULL, blobLength);
+            memset(buffer, 0, blobLength);
             instream->readBuffer(buffer, blobLength);
             v->closeStream(instream);
             v->close();
@@ -645,7 +645,7 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
               int lobLength = output->clobVal.length();
               oracle::occi::Stream* instream = output->clobVal.getStream(1,0);
               char *buffer = new char[lobLength];
-              memset(buffer, (int) NULL, lobLength);
+              memset(buffer, 0, lobLength);
               instream->readBuffer(buffer, lobLength);
               output->clobVal.closeStream(instream);
               output->clobVal.close();
@@ -659,7 +659,7 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
               int lobLength = output->blobVal.length();
               oracle::occi::Stream* instream = output->blobVal.getStream(1,0);              
               char *buffer = new char[lobLength];
-              memset(buffer, (int) NULL, lobLength);
+              memset(buffer, 0, lobLength);
               instream->readBuffer(buffer, lobLength);
               output->blobVal.closeStream(instream);
               output->blobVal.close();
