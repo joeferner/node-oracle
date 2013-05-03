@@ -2,6 +2,10 @@
   "targets": [
     {
       "target_name": "oracle_bindings",
+      "variables": {
+         "oci_include_dir%": "<!(if [ -z $OCI_INCLUDE_DIR ]; then echo \"/opt/instantclient/sdk/include/\"; else echo $OCI_INCLUDE_DIR; fi)",
+         "oci_lib_dir%": "<!(if [ -z $OCI_LIB_DIR ]; then echo \"/opt/instantclient/\"; else echo $OCI_LIB_DIR; fi)",
+      },
       "sources": [ "src/connection.cpp", 
                    "src/oracle_bindings.cpp", 
                    "src/executeBaton.cpp",
