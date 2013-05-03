@@ -22,8 +22,8 @@
         }],
         ["OS=='win'", {
           "variables": {
-            "oci_include_dir%": "<!(echo %OCI_INCLUDE_DIR%)",
-            "oci_lib_dir%": "<!(echo %OCI_LIB_DIR%)"
+            "oci_include_dir%": "<!(IF DEFINED OCI_INCLUDE_DIR (echo %OCI_INCLUDE_DIR%) ELSE (echo C:\oracle\instantclient\sdk\include))",
+            "oci_lib_dir%": "<!(IF DEFINED OCI_LIB_DIR (echo %OCI_LIB_DIR%) ELSE (echo C:\oracle\instantclient\sdk\lib\msvc))",
          },
          # "libraries": [ "-loci" ],
          "link_settings": {"libraries": [ '<(oci_lib_dir)\oraocci11.lib'] }
