@@ -2,10 +2,6 @@
   "targets": [
     {
       "target_name": "oracle_bindings",
-      "variables": {
-         "oci_include_dir%": "<!(if [ -z $OCI_INCLUDE_DIR ]; then echo \"/opt/instantclient/sdk/include/\"; else echo $OCI_INCLUDE_DIR; fi)",
-         "oci_lib_dir%": "<!(if [ -z $OCI_LIB_DIR ]; then echo \"/opt/instantclient/\"; else echo $OCI_LIB_DIR; fi)",
-      },
       "sources": [ "src/connection.cpp", 
                    "src/oracle_bindings.cpp", 
                    "src/executeBaton.cpp",
@@ -18,8 +14,8 @@
         }],
         ["OS!='win'", {
           "variables": {
-             "oci_include_dir%": "<!(echo $OCI_INCLUDE_DIR)",
-             "oci_lib_dir%": "<!(echo $OCI_LIB_DIR)"
+			 "oci_include_dir%": "<!(if [ -z $OCI_INCLUDE_DIR ]; then echo \"/opt/instantclient/sdk/include/\"; else echo $OCI_INCLUDE_DIR; fi)",
+			 "oci_lib_dir%": "<!(if [ -z $OCI_LIB_DIR ]; then echo \"/opt/instantclient/\"; else echo $OCI_LIB_DIR; fi)",
           },
           "libraries": [ "-locci", "-lclntsh", "-lnnz11" ],
           "link_settings": {"libraries": [ '-L<(oci_lib_dir)'] }
