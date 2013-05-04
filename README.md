@@ -1,10 +1,25 @@
 # Install
-
- * Install [Instant Client Package - Basic Lite](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html)
- * Install [Instant Client Package - SDK](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html)
+ * Install the Oracle Instant Client:
+  * Download the [Instant Client Package](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html): both "Basic Lite" and "SDK".
+  * Extract both the Basic Lite and the SDK zip files to `/opt/instantclient/` (Linux/OS X) or `C:\oracle\instantclient\` (Windows)
+   * or put them wherever you want and set the environment variables `OCI_INCLUDE_DIR` (to the sdk/include) and `OCI_LIB_DIR` (to the directory containing libocci.so.11.1 on Linux/OS X, or oraocci11.lib on Windows).
+  * Linux: add the shared object files to the ld cache:
+ 
+  	```bash
+	# Replace /opt/instantclient/ with wherever you extracted the Basic Lite files to
+	echo '/opt/instantclient/' | sudo tee -a /etc/ld.so.conf.d/moo.conf
+	sudo ldconfig
+	```
+	* Create the symbolic links:
+	
+	```bash
+		cd /opt/instantclient/
+		sudo ln -s libclntsh.so.11.1 libclntsh.so 
+		sudo ln -s libocci.so.11.1 libocci.so 
+	```
  * Finally install using Node Package Manager (npm):
 
-    npm install oracle
+    `npm install oracle`
 
 # Example
 
