@@ -441,9 +441,11 @@ void Connection::EIO_Execute(uv_work_t* req) {
 
   if(stmt && rs) {
     stmt->closeResultSet(rs);
+    rs = NULL;
   }
   if(stmt) {
     baton->connection->m_connection->terminateStatement(stmt);
+    stmt = NULL;
   }
 }
 
@@ -490,7 +492,6 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
   uint32_t colIndex = 0;
   for (std::vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
     column_t* col = *iterator;
-    // printf("Column: %s\n", col->name.c_str());
     void* val = currentRow->values[colIndex];
     if(val == NULL) {
       obj->Set(String::New(col->name.c_str()), Null());
@@ -514,12 +515,14 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
           {
             oracle::occi::Date* v = (oracle::occi::Date*)val;
             obj->Set(String::New(col->name.c_str()), OracleDateToV8Date(v));
+            delete v;
           }
           break;
         case VALUE_TYPE_TIMESTAMP:
           {
             oracle::occi::Timestamp* v = (oracle::occi::Timestamp*)val;
             obj->Set(String::New(col->name.c_str()), OracleTimestampToV8Date(v));
+            delete v;
           }
           break;
         case VALUE_TYPE_CLOB:
@@ -550,7 +553,8 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
             v->closeStream(instream);
             v->close();
             obj->Set(String::New(col->name.c_str()), String::New(buffer, clobLength));
-            delete buffer;
+            delete v;
+            delete [] buffer;
           }
           break;
         case VALUE_TYPE_BLOB:
@@ -572,7 +576,7 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
             v8::Handle<v8::Value> constructorArgs[3] = { nodeBuff->handle_, v8::Integer::New(blobLength), v8::Integer::New(0) };
             v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
             obj->Set(String::New(col->name.c_str()), v8Buffer);
-            delete buffer;            
+            delete v;
             break;
           }
           break;
@@ -600,6 +604,8 @@ Local<Array> Connection::CreateV8ArrayFromRows(std::vector<column_t*> columns, s
 }
 
 void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
+
+  HandleScope scope;
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
 
   baton->connection->Unref();
@@ -654,7 +660,7 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
               output->clobVal.closeStream(instream);
               output->clobVal.close();
               obj->Set(String::New(returnParam.c_str()), String::New(buffer, lobLength));
-              delete buffer;
+              delete [] buffer;
               break;
             }
           case OutParam::OCCIBLOB:
@@ -675,7 +681,6 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
               v8::Handle<v8::Value> constructorArgs[3] = { nodeBuff->handle_, v8::Integer::New(lobLength), v8::Integer::New(0) };
               v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
               obj->Set(String::New(returnParam.c_str()), v8Buffer);
-              delete buffer;            
               break;
             }
           case OutParam::OCCIDATE:

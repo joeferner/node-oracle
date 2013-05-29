@@ -23,6 +23,7 @@ ExecuteBaton::~ExecuteBaton() {
   }
 
   for (std::vector<value_t*>::iterator iterator = values.begin(), end = values.end(); iterator != end; ++iterator) {
+
     value_t* val = *iterator;
     if(val->type == VALUE_TYPE_STRING) {
       delete (std::string*)val->value;
@@ -35,6 +36,7 @@ ExecuteBaton::~ExecuteBaton() {
       row_t* currentRow = *iterator;
       delete currentRow;
     }
+
     delete rows;
   }
 
