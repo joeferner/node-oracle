@@ -12,6 +12,7 @@ struct connect_baton_t {
   std::string user;
   std::string password;
   std::string database;
+  std::string tns;
   uint32_t port;
   oracle::occi::Environment *environment;
 
@@ -65,6 +66,7 @@ Handle<Value> OracleClient::Connect(const Arguments& args) {
   OBJ_GET_STRING(settings, "password", baton->password);
   OBJ_GET_STRING(settings, "database", baton->database);
   OBJ_GET_NUMBER(settings, "port", baton->port, 1521);
+  OBJ_GET_STRING(settings, "tns", baton->tns);
 
   client->Ref();
 
@@ -82,7 +84,11 @@ void OracleClient::EIO_Connect(uv_work_t* req) {
 
   try {
     std::ostringstream connectionStr;
-    connectionStr << "//" << baton->hostname << ":" << baton->port << "/" << baton->database;
+    if (baton->tns != "") {
+      connectionStr << baton->tns;
+    } else {
+      connectionStr << "//" << baton->hostname << ":" << baton->port << "/" << baton->database;
+    }
     baton->connection = baton->environment->createConnection(baton->user, baton->password, connectionStr.str());
   } catch(oracle::occi::SQLException &ex) {
     baton->error = new std::string(ex.getMessage());
