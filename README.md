@@ -21,39 +21,80 @@
 
     `npm install oracle`
 
-# Example
+# Examples
+
+The simplest way to connect to the database uses the following code:
 
 ```javascript
 var oracle = require("oracle");
 
-oracle.connect({ "hostname": "localhost", "user": "test", "password": "test" }, function(err, connection) {
-  // selecting rows
-  connection.execute("SELECT * FROM person WHERE name = :1", ['bob smith'], function(err, results) {
-    // results will be an array of objects
-  });
+var connectData = { "hostname": "localhost", "user": "test", "password": "test", "database": "ORCL" };
 
-  // inserting with return value
-  connection.execute(
-    "INSERT INTO person (name) VALUES (:1) RETURNING id INTO :2",
-    ['joe ferner', new oracle.OutParam()],
-    function(err, results) {
-      // results.updateCount = 1
-      // results.returnParam = the id of the person just inserted
-    });
+oracle.connect(connectData, function(err, connection) {
+    ...
+    connection.close(); // call this when you are done with the connection
+  });
+});
+```
+The `database` parameter contains the "service name" or "SID" of the database. If you have an Oracle RAC or some other kind of setup, or if you prefer to use "TNS", you can do so as well. You can either provide a complete connection string, like:
+
+```javascript
+var connString = 
+      "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=orcl)))";
+```
+
+or just the shortcut as declared in your `tnsnames.ora`:
+
+    DEV =
+      (DESCRIPTION =
+        (ADDRESS = (PROTOCOL = TCP)(HOST = localhost)(PORT = 1521))
+        (CONNECT_DATA =
+          (SERVER = DEDICATED)
+          (SERVICE_NAME = orcl)
+        )
+      )
+
+The connection parameter would then be:
+
+```javascript
+var connectData = { "tns": "DEV", "user": "test", "password": "test" };
+// or: var connectData = { "tns": connString, "user": "test", "password": "test" };
+```
+
+To access a table you could then use:
+
+```javascript
+oracle.connect(connData, function(err, connection) {
 
   connection.setAutoCommit(true);
 
-  connection.commit(function(err) {
-    // transaction committed
-  });
+  // selecting rows
+  connection.execute("SELECT * FROM person", [], function(err, results) {
+    if ( err ) {
+      console.log(err);
+    } else {
+      console.log(results);
 
-  connection.rollback(function(err) {
-    // transaction rolledback
+      // inserting with return value
+      connection.execute(
+        "INSERT INTO person (name) VALUES (:1) RETURNING id INTO :2",
+        ['joe ferner', new oracle.OutParam()],
+        function(err, results) {
+          if ( err ) { console.log(err) } else {
+            console.log(results);
+          }
+          // results.updateCount = 1
+          // results.returnParam = the id of the person just inserted
+          connection.close(); // call this when you are done with the connection
+        }
+      );
+    }
+  
   });
-
-  connection.close(); // call this when you are done with the connection
 });
 ```
+
+
 
 ## Out Params
 
