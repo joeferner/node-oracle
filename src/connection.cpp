@@ -22,6 +22,7 @@ void Connection::Init(Handle<Object> target) {
 
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "execute", Execute);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "close", Close);
+  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "isConnected", IsConnected);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "setAutoCommit", SetAutoCommit);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "commit", Commit);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "rollback", Rollback);
@@ -82,6 +83,16 @@ Handle<Value> Connection::Close(const Arguments& args) {
   } catch (const std::exception& ex) {
 	  printf("Exception: %s\n", ex.what());
 	  return Undefined();
+  }
+}
+
+Handle<Value> Connection::IsConnected(const Arguments& args) {
+  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
+
+  if(connection && connection->m_connection) {
+    return Boolean::New(true);
+  } else {
+    return Boolean::New(false);
   }
 }
 
@@ -368,6 +379,9 @@ void Connection::EIO_Execute(uv_work_t* req) {
   oracle::occi::Statement* stmt = NULL;
   oracle::occi::ResultSet* rs = NULL;
   try {
+    if(! baton->connection->m_connection) {
+      throw NodeOracleException("Connection already closed");
+    }
     stmt = baton->connection->m_connection->createStatement(baton->sql);
     stmt->setAutoCommit(baton->connection->m_autoCommit);
     int outputParam = SetValuesOnStatement(stmt, baton->values);
@@ -444,7 +458,9 @@ void Connection::EIO_Execute(uv_work_t* req) {
     rs = NULL;
   }
   if(stmt) {
-    baton->connection->m_connection->terminateStatement(stmt);
+    if(baton->connection->m_connection) {
+      baton->connection->m_connection->terminateStatement(stmt);
+    }
     stmt = NULL;
   }
 }

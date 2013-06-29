@@ -22,6 +22,7 @@ public:
   static Handle<Value> New(const Arguments& args);
   static Handle<Value> Execute(const Arguments& args);
   static Handle<Value> Close(const Arguments& args);
+  static Handle<Value> IsConnected(const Arguments& args);
   static Handle<Value> Commit(const Arguments& args);
   static Handle<Value> Rollback(const Arguments& args);
   static Handle<Value> SetAutoCommit(const Arguments& args);
