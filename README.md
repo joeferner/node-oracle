@@ -94,6 +94,13 @@ oracle.connect(connData, function(err, connection) {
 });
 ```
 
+To validate whether the connection is still established after some time:
+
+```javascript
+if (! connection.isConnected()) {
+  // retire this connection from a pool
+}
+```
 
 
 ## Out Params
