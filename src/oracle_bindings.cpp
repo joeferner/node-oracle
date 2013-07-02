@@ -111,7 +111,11 @@ void OracleClient::EIO_AfterConnect(uv_work_t* req, int status) {
     argv[1] = connection;
   }
 
+  v8::TryCatch tryCatch;
   baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+  if (tryCatch.HasCaught()) {
+    node::FatalException(tryCatch);
+  }
 
   baton->callback.Dispose();
   if(baton->error) delete baton->error;
