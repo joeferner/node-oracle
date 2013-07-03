@@ -347,7 +347,11 @@ void Connection::EIO_AfterCommit(uv_work_t* req, int status) {
 
   Handle<Value> argv[2];
   argv[0] = Undefined();
+  v8::TryCatch tryCatch;
   baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+  if (tryCatch.HasCaught()) {
+    node::FatalException(tryCatch);
+  }
 
   delete baton;
 }
@@ -365,7 +369,11 @@ void Connection::EIO_AfterRollback(uv_work_t* req, int status) {
 
   Handle<Value> argv[2];
   argv[0] = Undefined();
+  v8::TryCatch tryCatch;
   baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+  if (tryCatch.HasCaught()) {
+    node::FatalException(tryCatch);
+  }
 
   delete baton;
 }
@@ -715,7 +723,11 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
         argv[1] = obj;
       }
     }
+    v8::TryCatch tryCatch;
     baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    if (tryCatch.HasCaught()) {
+      node::FatalException(tryCatch);
+    }
   } catch(NodeOracleException &ex) {
     Handle<Value> argv[2];
     argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
