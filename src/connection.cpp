@@ -569,14 +569,23 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
                 break;
             }
 
-            int clobLength = v->length();
             oracle::occi::Stream *instream = v->getStream(1,0);
-            char *buffer = new char[clobLength];
-            memset(buffer, 0, clobLength);
-            instream->readBuffer(buffer, clobLength);
+            // chunk size is set when the table is created
+            size_t chunkSize = v->getChunkSize();
+            char *buffer = new char[chunkSize];
+            memset(buffer, 0, chunkSize);
+            std::string columnVal;
+            int numBytesRead = instream->readBuffer(buffer, chunkSize);
+            int totalBytesRead = 0;
+            while (numBytesRead != -1) {
+                totalBytesRead += numBytesRead;
+                columnVal.append(buffer);
+                numBytesRead = instream->readBuffer(buffer, chunkSize);
+            }
+
             v->closeStream(instream);
             v->close();
-            obj->Set(String::New(col->name.c_str()), String::New(buffer, clobLength));
+            obj->Set(String::New(col->name.c_str()), String::New(columnVal.c_str(), totalBytesRead));
             delete v;
             delete [] buffer;
           }
