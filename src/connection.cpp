@@ -280,7 +280,10 @@ void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::ve
       case oracle::occi::OCCI_TYPECODE_DATE:
         col->type = VALUE_TYPE_DATE;
         break;
+      //Use OCI_TYPECODE from oro.h because occiCommon.h does not re-export these in the TypeCode enum
       case OCI_TYPECODE_TIMESTAMP:
+      case OCI_TYPECODE_TIMESTAMP_TZ: //Timezone
+      case OCI_TYPECODE_TIMESTAMP_LTZ: //Local Timezone
         col->type = VALUE_TYPE_TIMESTAMP;
         break;
       case oracle::occi::OCCI_TYPECODE_BLOB:
