@@ -280,7 +280,7 @@ void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::ve
       case oracle::occi::OCCI_TYPECODE_DATE:
         col->type = VALUE_TYPE_DATE;
         break;
-      //Use OCI_TYPECODE from oro.h because occiCommon.h does not re-export these in the TypeCode enum
+      //Use OCI_TYPECODE from oro.h because occiCommon.h does not re-export these in its TypeCode enum
       case OCI_TYPECODE_TIMESTAMP:
       case OCI_TYPECODE_TIMESTAMP_TZ: //Timezone
       case OCI_TYPECODE_TIMESTAMP_LTZ: //Local Timezone
@@ -487,7 +487,7 @@ Local<Date> OracleDateToV8Date(oracle::occi::Date* d) {
 	unsigned int month, day, hour, min, sec;
 	d->getDate(year, month, day, hour, min, sec);
 	Local<Date> date = Date::Cast(*Date::New(0.0));
-	CallDateMethod(date, "setUTCMilliSeconds", 0);
+	CallDateMethod(date, "setUTCMilliseconds", 0);
 	CallDateMethod(date, "setUTCSeconds", sec);
 	CallDateMethod(date, "setUTCMinutes", min);
 	CallDateMethod(date, "setUTCHours", hour);
@@ -499,12 +499,14 @@ Local<Date> OracleDateToV8Date(oracle::occi::Date* d) {
 
 Local<Date> OracleTimestampToV8Date(oracle::occi::Timestamp* d) {
 	int year;
-	unsigned int month, day, hour, min, sec, fs;
+	unsigned int month, day, hour, min, sec, fs, ms;
 	d->getDate(year, month, day);
 	d->getTime(hour, min, sec, fs);
 	Local<Date> date = Date::Cast(*Date::New(0.0));
+	//occi always returns nanoseconds, regardless of precision set on timestamp column
+	ms = (fs / 1000000.0) + 0.5; // add 0.5 to round to nearest millisecond
 
-	CallDateMethod(date, "setUTCMilliSeconds", fs);
+	CallDateMethod(date, "setUTCMilliseconds", ms);
 	CallDateMethod(date, "setUTCSeconds", sec);
 	CallDateMethod(date, "setUTCMinutes", min);
 	CallDateMethod(date, "setUTCHours", hour);
