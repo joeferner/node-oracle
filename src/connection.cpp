@@ -289,6 +289,7 @@ void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::ve
       default:
         std::ostringstream message;
         message << "CreateColumnsFromResultSet: Unhandled oracle data type: " << type;
+        delete col;
         throw NodeOracleException(message.str());
         break;
     }
