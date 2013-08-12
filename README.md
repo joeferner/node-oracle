@@ -18,10 +18,11 @@ On MacOS or Linux:
 
 MacOS/Linux:
 
-```
+```bash
 export OCI_HOME=<directory of Oracle instant client>
 export OCI_LIB_DIR=$OCI_HOME
 export OCI_INCLUDE_DIR=$OCI_HOME/sdk/include
+export OCI_VERSION=<the instant client major version number> # Optional. Default is 11.
 ```
 
 2. Create the following symbolic links
@@ -78,9 +79,10 @@ On Windows, you need to set the environment variables:
 
 If you have VisualStudio 2012 installed,
 
-```
+```bat
 OCI_INCLUDE_DIR=C:\instantclient_12_1\sdk\include
 OCI_LIB_DIR=C:\instantclient_12_1\sdk\lib\msvc\vc11
+OCI_VERSION=<the instant client major version number> # Optional. Default is 11.
 Path=...;c:\instantclient_12_1\vc11;c:\instantclient_12_1
 ```
 
@@ -88,9 +90,10 @@ Path=...;c:\instantclient_12_1\vc11;c:\instantclient_12_1
 
 If you have VisualStudio 2010 installed,
 
-```
+```bat
 OCI_INCLUDE_DIR=C:\instantclient_12_1\sdk\include
 OCI_LIB_DIR=C:\instantclient_12_1\sdk\lib\msvc\vc10
+OCI_VERSION=<the instant client major version number> # Optional. Default is 11.
 Path=...;c:\instantclient_12_1\vc10;c:\instantclient_12_1
 ```
 
