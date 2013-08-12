@@ -21,6 +21,7 @@ public:
   static void Init(Handle<Object> target);
   static Handle<Value> New(const Arguments& args);
   static Handle<Value> Execute(const Arguments& args);
+  static Handle<Value> ExecuteSync(const Arguments& args);
   static Handle<Value> Close(const Arguments& args);
   static Handle<Value> IsConnected(const Arguments& args);
   static Handle<Value> Commit(const Arguments& args);
@@ -47,6 +48,7 @@ private:
   static row_t* CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns);
   static Local<Array> CreateV8ArrayFromRows(std::vector<column_t*> columns, std::vector<row_t*>* rows);
   static Local<Object> CreateV8ObjectFromRow(std::vector<column_t*> columns, row_t* currentRow);
+  static void handleResult(ExecuteBaton* baton, Handle<Value> (&argv)[2]);
 
   oracle::occi::Connection* m_connection;
   oracle::occi::Environment* m_environment;

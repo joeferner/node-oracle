@@ -21,6 +21,7 @@ void Connection::Init(Handle<Object> target) {
   constructorTemplate->SetClassName(String::NewSymbol("Connection"));
 
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "execute", Execute);
+  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "executeSync", ExecuteSync);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "close", Close);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "isConnected", IsConnected);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "setAutoCommit", SetAutoCommit);
@@ -35,10 +36,10 @@ Handle<Value> Connection::New(const Arguments& args) {
 
   Connection *connection = new Connection();
   connection->Wrap(args.This());
-  return args.This();
+  return scope.Close(args.This());
 }
 
-Connection::Connection() {
+Connection::Connection():m_connection(NULL), m_environment(NULL), m_autoCommit(true) {
 }
 
 Connection::~Connection() {
@@ -46,6 +47,7 @@ Connection::~Connection() {
 }
 
 Handle<Value> Connection::Execute(const Arguments& args) {
+  HandleScope scope;
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
 
   REQ_STRING_ARG(0, sql);
@@ -58,11 +60,7 @@ Handle<Value> Connection::Execute(const Arguments& args) {
   try {
     baton = new ExecuteBaton(connection, *sqlVal, &values, &callback);
   } catch(NodeOracleException &ex) {
-    Handle<Value> argv[2];
-    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
-    argv[1] = Undefined();
-    callback->Call(Context::GetCurrent()->Global(), 2, argv);
-    return Undefined();
+    return scope.Close(ThrowException(Exception::Error(String::New(ex.getMessage().c_str()))));
   }
 
   uv_work_t* req = new uv_work_t();
@@ -71,32 +69,34 @@ Handle<Value> Connection::Execute(const Arguments& args) {
 
   connection->Ref();
 
-  return Undefined();
+  return scope.Close(Undefined());
 }
 
 Handle<Value> Connection::Close(const Arguments& args) {
+  HandleScope scope;
   try {
 	  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
 	  connection->closeConnection();
 
-	  return Undefined();
-  } catch (const std::exception& ex) {
-	  printf("Exception: %s\n", ex.what());
-	  return Undefined();
+	  return scope.Close(Undefined());
+  } catch (const exception& ex) {
+	  return scope.Close(ThrowException(Exception::Error(String::New(ex.what()))));
   }
 }
 
 Handle<Value> Connection::IsConnected(const Arguments& args) {
+  HandleScope scope;
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
 
   if(connection && connection->m_connection) {
-    return Boolean::New(true);
+    return scope.Close(Boolean::New(true));
   } else {
-    return Boolean::New(false);
+    return scope.Close(Boolean::New(false));
   }
 }
 
 Handle<Value> Connection::Commit(const Arguments& args) {
+  HandleScope scope;
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
 
   REQ_FUN_ARG(0, callback);
@@ -105,11 +105,7 @@ Handle<Value> Connection::Commit(const Arguments& args) {
   try {
     baton = new CommitBaton(connection, &callback);
   } catch(NodeOracleException &ex) {
-    Handle<Value> argv[2];
-    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
-    argv[1] = Undefined();
-    callback->Call(Context::GetCurrent()->Global(), 2, argv);
-    return Undefined();
+    return scope.Close(ThrowException(Exception::Error(String::New(ex.getMessage().c_str()))));
   }
 
   uv_work_t* req = new uv_work_t();
@@ -118,10 +114,11 @@ Handle<Value> Connection::Commit(const Arguments& args) {
 
   connection->Ref();
 
-  return Undefined();
+  return scope.Close(Undefined());
 }
 
 Handle<Value> Connection::Rollback(const Arguments& args) {
+  HandleScope scope;
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
 
   REQ_FUN_ARG(0, callback);
@@ -130,11 +127,7 @@ Handle<Value> Connection::Rollback(const Arguments& args) {
   try {
     baton = new RollbackBaton(connection, &callback);
   } catch(NodeOracleException &ex) {
-    Handle<Value> argv[2];
-    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
-    argv[1] = Undefined();
-    callback->Call(Context::GetCurrent()->Global(), 2, argv);
-    return Undefined();
+    return scope.Close(ThrowException(Exception::Error(String::New(ex.getMessage().c_str()))));
   }
 
   uv_work_t* req = new uv_work_t();
@@ -143,14 +136,15 @@ Handle<Value> Connection::Rollback(const Arguments& args) {
 
   connection->Ref();
 
-  return Undefined();
+  return scope.Close(Undefined());
 }
 
 Handle<Value> Connection::SetAutoCommit(const Arguments& args) {
+  HandleScope scope;
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
   REQ_BOOL_ARG(0, autoCommit);
   connection->m_autoCommit = autoCommit;
-  return Undefined();
+  return scope.Close(Undefined());
 }
 
 void Connection::closeConnection() {
@@ -164,10 +158,11 @@ void RandomBytesFree(char* data, void* hint) {
   delete[] data;
 }
 
-int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<value_t*> &values) {
+int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, vector<value_t*> &values) {
   uint32_t index = 1;
   int outputParam = -1;
-  for (std::vector<value_t*>::iterator iterator = values.begin(), end = values.end(); iterator != end; ++iterator, index++) {
+  OutParam * outParam = NULL;
+  for (vector<value_t*>::iterator iterator = values.begin(), end = values.end(); iterator != end; ++iterator, index++) {
     value_t* val = *iterator;
     int outParamType;
 
@@ -176,7 +171,7 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
         stmt->setNull(index, oracle::occi::OCCISTRING);
         break;
       case VALUE_TYPE_STRING:
-        stmt->setString(index, *((std::string*)val->value));
+        stmt->setString(index, *((string*)val->value));
         break;
       case VALUE_TYPE_NUMBER:
         stmt->setNumber(index, *((oracle::occi::Number*)val->value));
@@ -184,33 +179,35 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
       case VALUE_TYPE_DATE:
         stmt->setDate(index, *((oracle::occi::Date*)val->value));
         break;
-      case VALUE_TYPE_OUTPUT:        
-        outParamType = ((OutParam*)val->value)->type();
+      case VALUE_TYPE_OUTPUT:
+        outParam = static_cast<OutParam*>(val->value);
+        // std::cout << "OutParam B: " << outParam << " "<< outParam->type() << " " << outParam->_inOut.hasInParam << std::endl;
+        outParamType = outParam->type();
         switch(outParamType) {
           case OutParam::OCCIINT:
-            if (((OutParam*)val->value)->_inOut.hasInParam) {
-              stmt->setInt(index, ((OutParam*)val->value)->_inOut.intVal);
+            if (outParam->_inOut.hasInParam) {
+              stmt->setInt(index, outParam->_inOut.intVal);
             }else {
               stmt->registerOutParam(index, oracle::occi::OCCIINT);
             }
             break;
           case OutParam::OCCISTRING:
-            if (((OutParam*)val->value)->_inOut.hasInParam) {
-              stmt->setString(index, ((OutParam*)val->value)->_inOut.stringVal);
+            if (outParam->_inOut.hasInParam) {
+              stmt->setString(index, outParam->_inOut.stringVal);
             }else {
-              stmt->registerOutParam(index, oracle::occi::OCCISTRING, ((OutParam*)val->value)->size());
+              stmt->registerOutParam(index, oracle::occi::OCCISTRING, outParam->size());
             }
             break;
           case OutParam::OCCIDOUBLE:
-            if (((OutParam*)val->value)->_inOut.hasInParam) {
-              stmt->setDouble(index, ((OutParam*)val->value)->_inOut.doubleVal);
+            if (outParam->_inOut.hasInParam) {
+              stmt->setDouble(index, outParam->_inOut.doubleVal);
             }else {
               stmt->registerOutParam(index, oracle::occi::OCCIDOUBLE);
             }
             break;
           case OutParam::OCCIFLOAT:
-            if (((OutParam*)val->value)->_inOut.hasInParam) {
-              stmt->setFloat(index, ((OutParam*)val->value)->_inOut.floatVal);
+            if (outParam->_inOut.hasInParam) {
+              stmt->setFloat(index, outParam->_inOut.floatVal);
             }else {
               stmt->registerOutParam(index, oracle::occi::OCCIFLOAT);
             }
@@ -229,8 +226,8 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
             break;
           case OutParam::OCCINUMBER:
             {
-              if (((OutParam*)val->value)->_inOut.hasInParam) {
-                stmt->setNumber(index, ((OutParam*)val->value)->_inOut.numberVal);
+              if (outParam->_inOut.hasInParam) {
+                stmt->setNumber(index, outParam->_inOut.numberVal);
               } else {
                 stmt->registerOutParam(index, oracle::occi::OCCINUMBER);
               }
@@ -240,7 +237,11 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
             stmt->registerOutParam(index, oracle::occi::OCCIBLOB);
             break;
           default:
-            throw NodeOracleException("SetValuesOnStatement: Unknown OutParam type: " + outParamType);
+            {
+                ostringstream oss;
+                oss << "SetValuesOnStatement: Unknown OutParam type: " << outParamType;
+                throw NodeOracleException(oss.str());
+            }
         }
         outputParam = index;
         break;
@@ -251,9 +252,9 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<
   return outputParam;
 }
 
-void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns) {
-  std::vector<oracle::occi::MetaData> metadata = rs->getColumnListMetaData();
-  for (std::vector<oracle::occi::MetaData>::iterator iterator = metadata.begin(), end = metadata.end(); iterator != end; ++iterator) {
+void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, vector<column_t*> &columns) {
+  vector<oracle::occi::MetaData> metadata = rs->getColumnListMetaData();
+  for (vector<oracle::occi::MetaData>::iterator iterator = metadata.begin(), end = metadata.end(); iterator != end; ++iterator) {
     oracle::occi::MetaData metadata = *iterator;
     column_t* col = new column_t();
     col->name = metadata.getString(oracle::occi::MetaData::ATTR_NAME);
@@ -290,7 +291,7 @@ void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::ve
         col->type = VALUE_TYPE_BLOB;
         break;
       default:
-        std::ostringstream message;
+        ostringstream message;
         message << "CreateColumnsFromResultSet: Unhandled oracle data type: " << type;
         delete col;
         throw NodeOracleException(message.str());
@@ -300,17 +301,17 @@ void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::ve
   }
 }
 
-row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns) {
+row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs, vector<column_t*> &columns) {
   row_t* row = new row_t();
   int colIndex = 1;
-  for (std::vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
+  for (vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
     column_t* col = *iterator;
     if(rs->isNull(colIndex)) {
       row->values.push_back(NULL);
     } else {
       switch(col->type) {
         case VALUE_TYPE_STRING:
-          row->values.push_back(new std::string(rs->getString(colIndex)));
+          row->values.push_back(new string(rs->getString(colIndex)));
           break;
         case VALUE_TYPE_NUMBER:
           row->values.push_back(new oracle::occi::Number(rs->getNumber(colIndex)));
@@ -328,7 +329,7 @@ row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs,
           row->values.push_back(new oracle::occi::Blob(rs->getBlob(colIndex)));
           break;
         default:
-          std::ostringstream message;
+          ostringstream message;
           message << "CreateRowFromCurrentResultSetRow: Unhandled type: " << col->type;
           throw NodeOracleException(message.str());
           break;
@@ -345,6 +346,7 @@ void Connection::EIO_Commit(uv_work_t* req) {
 }
 
 void Connection::EIO_AfterCommit(uv_work_t* req, int status) {
+  HandleScope scope;
   CommitBaton* baton = static_cast<CommitBaton*>(req->data);
 
   baton->connection->Unref();
@@ -353,11 +355,12 @@ void Connection::EIO_AfterCommit(uv_work_t* req, int status) {
   argv[0] = Undefined();
   v8::TryCatch tryCatch;
   baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+  delete baton;
+
   if (tryCatch.HasCaught()) {
     node::FatalException(tryCatch);
   }
 
-  delete baton;
 }
 
 void Connection::EIO_Rollback(uv_work_t* req) {
@@ -367,6 +370,7 @@ void Connection::EIO_Rollback(uv_work_t* req) {
 }
 
 void Connection::EIO_AfterRollback(uv_work_t* req, int status) {
+  HandleScope scope;
   RollbackBaton* baton = static_cast<RollbackBaton*>(req->data);
 
   baton->connection->Unref();
@@ -375,11 +379,12 @@ void Connection::EIO_AfterRollback(uv_work_t* req, int status) {
   argv[0] = Undefined();
   v8::TryCatch tryCatch;
   baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+  delete baton;
+
   if (tryCatch.HasCaught()) {
     node::FatalException(tryCatch);
   }
 
-  delete baton;
 }
 
 void Connection::EIO_Execute(uv_work_t* req) {
@@ -402,7 +407,7 @@ void Connection::EIO_Execute(uv_work_t* req) {
     if(status == oracle::occi::Statement::UPDATE_COUNT_AVAILABLE) {
       baton->updateCount = stmt->getUpdateCount();
       if(outputParam >= 0) {
-        for (std::vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator) {
+        for (vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator) {
           output_t* output = *iterator;
           oracle::occi::ResultSet* rs;
           switch(output->type) {
@@ -410,7 +415,7 @@ void Connection::EIO_Execute(uv_work_t* req) {
             output->intVal = stmt->getInt(output->index); 
             break;
           case OutParam::OCCISTRING:
-            output->strVal = std::string(stmt->getString(output->index));
+            output->strVal = string(stmt->getString(output->index));
             break;
           case OutParam::OCCIDOUBLE:
             output->doubleVal = stmt->getDouble(output->index);
@@ -421,7 +426,7 @@ void Connection::EIO_Execute(uv_work_t* req) {
           case OutParam::OCCICURSOR:
             rs = stmt->getCursor(output->index);
             CreateColumnsFromResultSet(rs, output->columns);
-            output->rows = new std::vector<row_t*>();
+            output->rows = new vector<row_t*>();
             while(rs->next()) {
               row_t* row = CreateRowFromCurrentResultSetRow(rs, output->columns);
               output->rows->push_back(row);
@@ -443,14 +448,18 @@ void Connection::EIO_Execute(uv_work_t* req) {
             output->numberVal = stmt->getNumber(output->index);
             break;
           default:
-            throw NodeOracleException("Unknown OutParam type: " + output->type);
-          }          
+            {
+                ostringstream oss;
+                oss << "Unknown OutParam type: " << output->type;
+                throw NodeOracleException(oss.str());
+            }
+          }
         }
       }
     } else if(status == oracle::occi::Statement::RESULT_SET_AVAILABLE) {
       rs = stmt->getResultSet();
       CreateColumnsFromResultSet(rs, baton->columns);
-      baton->rows = new std::vector<row_t*>();
+      baton->rows = new vector<row_t*>();
 
       while(rs->next()) {
         row_t* row = CreateRowFromCurrentResultSetRow(rs, baton->columns);
@@ -458,11 +467,13 @@ void Connection::EIO_Execute(uv_work_t* req) {
       }
     }
   } catch(oracle::occi::SQLException &ex) {
-    baton->error = new std::string(ex.getMessage());
+    baton->error = new string(ex.getMessage());
   } catch(NodeOracleException &ex) {
-    baton->error = new std::string(ex.getMessage());
-  } catch (const std::exception& ex) {
-	baton->error = new std::string(ex.what());
+    baton->error = new string(ex.getMessage());
+  } catch (const exception& ex) {
+	baton->error = new string(ex.what());
+  } catch (...) {
+    baton->error = new string("Unknown Error");
   }
 
   if(stmt && rs) {
@@ -517,10 +528,10 @@ Local<Date> OracleTimestampToV8Date(oracle::occi::Timestamp* d) {
 	return date;
 }
 
-Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, row_t* currentRow) {
+Local<Object> Connection::CreateV8ObjectFromRow(vector<column_t*> columns, row_t* currentRow) {
   Local<Object> obj = Object::New();
   uint32_t colIndex = 0;
-  for (std::vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
+  for (vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
     column_t* col = *iterator;
     void* val = currentRow->values[colIndex];
     if(val == NULL) {
@@ -529,7 +540,7 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
       switch(col->type) {
         case VALUE_TYPE_STRING:
           {
-            std::string* v = (std::string*)val;
+            string* v = (string*)val;
             obj->Set(String::New(col->name.c_str()), String::New(v->c_str()));
             delete v;
           }
@@ -616,13 +627,14 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
             v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
             obj->Set(String::New(col->name.c_str()), v8Buffer);
             delete v;
+            delete[] buffer;            
             break;
           }
           break;
         default:
-          std::ostringstream message;
-          message << "CreateV8ObjectFromRow: Unhandled type: " << col->type;
-          throw NodeOracleException(message.str());
+          ostringstream oss;
+          oss << "CreateV8ObjectFromRow: Unhandled type: " << col->type;
+          throw NodeOracleException(oss.str());
           break;
       }
     }
@@ -630,11 +642,11 @@ Local<Object> Connection::CreateV8ObjectFromRow(std::vector<column_t*> columns, 
   return obj;
 }
 
-Local<Array> Connection::CreateV8ArrayFromRows(std::vector<column_t*> columns, std::vector<row_t*>* rows) {
+Local<Array> Connection::CreateV8ArrayFromRows(vector<column_t*> columns, vector<row_t*>* rows) {
   size_t totalRows = rows->size();
   Local<Array> retRows = Array::New(totalRows);
   uint32_t index = 0;
-  for (std::vector<row_t*>::iterator iterator = rows->begin(), end = rows->end(); iterator != end; ++iterator, index++) {
+  for (vector<row_t*>::iterator iterator = rows->begin(), end = rows->end(); iterator != end; ++iterator, index++) {
     row_t* currentRow = *iterator;
     Local<Object> obj = CreateV8ObjectFromRow(columns, currentRow);
     retRows->Set(index, obj);
@@ -650,6 +662,25 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
   baton->connection->Unref();
   try {
     Handle<Value> argv[2];
+    handleResult(baton, argv);
+    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+  } catch(NodeOracleException &ex) {
+    Handle<Value> argv[2];
+    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
+    argv[1] = Undefined();
+    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+  } catch(const exception &ex) {
+	    Handle<Value> argv[2];
+	    argv[0] = Exception::Error(String::New(ex.what()));
+	    argv[1] = Undefined();
+	    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+  }
+
+  delete baton;
+}
+
+void Connection::handleResult(ExecuteBaton* baton, Handle<Value> (&argv)[2]) {
+try {
     if(baton->error) {
       argv[0] = Exception::Error(String::New(baton->error->c_str()));
       argv[1] = Undefined();
@@ -660,18 +691,18 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
       } else {
         Local<Object> obj = Object::New();
         obj->Set(String::New("updateCount"), Integer::New(baton->updateCount));
-        
+
         /* Note: attempt to keep backward compatability here: existing users of this library will have code that expects a single out param
                  called 'returnParam'. For multiple out params, the first output will continue to be called 'returnParam' and subsequent outputs
                  will be called 'returnParamX'.
         */
         uint32_t index = 0;
-        for (std::vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator, index++) {
+        for (vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator, index++) {
           output_t* output = *iterator;
-          std::stringstream ss;          
+          stringstream ss;
           ss << "returnParam";
           if(index > 0) ss << index;
-          std::string returnParam(ss.str());
+          string returnParam(ss.str());
           switch(output->type) {
           case OutParam::OCCIINT:
             obj->Set(String::New(returnParam.c_str()), Integer::New(output->intVal));
@@ -703,10 +734,10 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
               break;
             }
           case OutParam::OCCIBLOB:
-            { 
+            {
               output->blobVal.open(oracle::occi::OCCI_LOB_READONLY);
               int lobLength = output->blobVal.length();
-              oracle::occi::Stream* instream = output->blobVal.getStream(1,0);              
+              oracle::occi::Stream* instream = output->blobVal.getStream(1,0);
               char *buffer = new char[lobLength];
               memset(buffer, 0, lobLength);
               instream->readBuffer(buffer, lobLength);
@@ -720,6 +751,7 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
               v8::Handle<v8::Value> constructorArgs[3] = { nodeBuff->handle_, v8::Integer::New(lobLength), v8::Integer::New(0) };
               v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
               obj->Set(String::New(returnParam.c_str()), v8Buffer);
+              delete [] buffer;
               break;
             }
           case OutParam::OCCIDATE:
@@ -732,16 +764,15 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
             obj->Set(String::New(returnParam.c_str()), Number::New(output->numberVal));
             break;
           default:
-            throw NodeOracleException("Unknown OutParam type: " + output->type);
-          }          
+            {
+                 ostringstream oss;
+                 oss << "Unknown OutParam type: " << output->type;
+                 throw NodeOracleException(oss.str());
+             }
+          }
         }
         argv[1] = obj;
       }
-    }
-    v8::TryCatch tryCatch;
-    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
-    if (tryCatch.HasCaught()) {
-      node::FatalException(tryCatch);
     }
   } catch(NodeOracleException &ex) {
     Handle<Value> argv[2];
@@ -755,10 +786,43 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
 	    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
   }
 
-  delete baton;
 }
 
 void Connection::setConnection(oracle::occi::Environment* environment, oracle::occi::Connection* connection) {
   m_environment = environment;
   m_connection = connection;
+}
+
+Handle<Value> Connection::ExecuteSync(const Arguments& args) {
+  HandleScope scope;
+  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
+
+  REQ_STRING_ARG(0, sql);
+  REQ_ARRAY_ARG(1, values);
+
+  String::AsciiValue sqlVal(sql);
+
+  ExecuteBaton* baton;
+  try {
+    baton = new ExecuteBaton(connection, *sqlVal, &values, NULL);
+  } catch(NodeOracleException &ex) {
+    return ThrowException(Exception::Error(String::New(ex.getMessage().c_str())));
+  }
+
+  uv_work_t* req = new uv_work_t();
+  req->data = baton;
+
+  baton->connection->Ref();
+  EIO_Execute(req);
+  baton->connection->Unref();
+  Handle<Value> argv[2];
+  handleResult(baton, argv);
+
+  if(baton->error) {
+    delete baton;
+    return scope.Close(ThrowException(argv[0]));
+  }
+
+  delete baton;
+  return scope.Close(argv[1]);
 }

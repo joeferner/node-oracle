@@ -1,25 +1,101 @@
 # Install
- * Install the Oracle Instant Client:
-  * Download the [Instant Client Package](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html): both "Basic Lite" and "SDK".
-  * Extract both the Basic Lite and the SDK zip files to `/opt/instantclient/` (Linux/OS X) or `C:\oracle\instantclient\` (Windows)
-   * or put them wherever you want and set the environment variables `OCI_INCLUDE_DIR` (to the sdk/include) and `OCI_LIB_DIR` (to the directory containing libocci.so.11.1 on Linux/OS X, or oraocci11.lib on Windows).
-  * Linux: add the shared object files to the ld cache:
- 
-  	```bash
-	# Replace /opt/instantclient/ with wherever you extracted the Basic Lite files to
-	echo '/opt/instantclient/' | sudo tee -a /etc/ld.so.conf.d/moo.conf
-	sudo ldconfig
-	```
-	* Create the symbolic links:
-	
-	```bash
-		cd /opt/instantclient/
-		sudo ln -s libclntsh.so.11.1 libclntsh.so 
-		sudo ln -s libocci.so.11.1 libocci.so 
-	```
- * Finally install using Node Package Manager (npm):
 
-    `npm install oracle`
+You need to download and install [Oracle instant client](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html) from following links:
+
+http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html
+
+1. Instant Client Package - Basic or Basic Lite: All files required to run OCI, OCCI, and JDBC-OCI applications
+2. Instant Client Package - SDK: Additional header files and an example makefile for developing Oracle applications with Instant Client
+
+For Windows, please make sure 12_1 version is used.
+
+**Please make sure you download the correct packages for your system architecture, such as 64 bit vs 32 bit**
+**Unzip the files 1 and 2 into the same directory, such as /opt/instantclient\_11\_2 or c:\instantclient\_12\_1**
+
+On MacOS or Linux:
+
+1. Set up the following environment variables
+
+MacOS/Linux:
+
+```
+export OCI_HOME=<directory of Oracle instant client>
+export OCI_LIB_DIR=$OCI_HOME
+export OCI_INCLUDE_DIR=$OCI_HOME/sdk/include
+```
+
+2. Create the following symbolic links
+
+MacOS:
+
+```
+cd $OCI_LIB_DIR
+ln -s libclntsh.dylib.11.1 libclntsh.dylib
+ln -s libocci.dylib.11.1 libocci.dylib
+```
+
+Linux:
+
+```
+cd $OCI_LIB_DIR
+ln -s libclntsh.so.11.1 libclntsh.so
+ln -s libocci.so.11.1 libocci.so
+```
+
+`libaio` library is required on Linux systems:
+
+* On Unbuntu/Debian
+
+```
+sudo apt-get install libaio1
+```
+
+* On Fedora/CentOS/RHEL
+
+```
+sudo yum install libaio
+```
+
+3. Configure the dynamic library path
+
+MacOS:
+
+```
+export DYLD_LIBRARY_PATH=$OCI_LIB_DIR
+```
+
+Linux:
+
+Add the shared object files to the ld cache:
+
+```
+# Replace /opt/instantclient_11_2/ with wherever you extracted the Basic Lite files to
+echo '/opt/instantclient_11_2/' | sudo tee -a /etc/ld.so.conf.d/oracle_instant_client.conf
+sudo ldconfig
+```
+
+On Windows, you need to set the environment variables:
+
+If you have VisualStudio 2012 installed,
+
+```
+OCI_INCLUDE_DIR=C:\instantclient_12_1\sdk\include
+OCI_LIB_DIR=C:\instantclient_12_1\sdk\lib\msvc\vc11
+Path=...;c:\instantclient_12_1\vc11;c:\instantclient_12_1
+```
+
+**Please make sure c:\instantclient_12_1\vc11 comes before c:\instantclient_12_1**
+
+If you have VisualStudio 2010 installed,
+
+```
+OCI_INCLUDE_DIR=C:\instantclient_12_1\sdk\include
+OCI_LIB_DIR=C:\instantclient_12_1\sdk\lib\msvc\vc10
+Path=...;c:\instantclient_12_1\vc10;c:\instantclient_12_1
+```
+
+**Please make sure c:\instantclient_12_1\vc10 comes before c:\instantclient_12_1**
+
 
 # Examples
 
@@ -66,7 +142,7 @@ To access a table you could then use:
 ```javascript
 oracle.connect(connData, function(err, connection) {
 
-  connection.setAutoCommit(true);
+or just the shortcut as declared in your `tnsnames.ora`:
 
   // selecting rows
   connection.execute("SELECT * FROM person", [], function(err, results) {

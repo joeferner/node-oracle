@@ -11,6 +11,10 @@
     {
       "name": "Joe Ferner",
       "email": "joe@fernsroth.com"
+    },
+    {
+      "name": "Raymond Feng",
+      "email": "raymond@strongloop.com"
     }
   ],
   "bugs": {
