@@ -154,6 +154,7 @@ void Connection::closeConnection() {
 		m_connection = NULL;
 	} catch (oracle::occi::SQLException &ex) {
 		m_connection = NULL;
+		throw; // rethrow to allow handler to throw in V8 scope
 	}
   }
 }
