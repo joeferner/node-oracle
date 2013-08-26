@@ -44,7 +44,7 @@
             "oci_version%": "<!(IF DEFINED OCI_VERSION (echo %OCI_VERSION%) ELSE (echo 11))"
          },
          # "libraries": [ "-loci" ],
-         "link_settings": {"libraries": [ '<(oci_lib_dir)\oraocci<(OCI_VERSION).lib'] }
+         "link_settings": {"libraries": [ '<(oci_lib_dir)\oraocci<(oci_version).lib'] }
         }]
       ],
       "include_dirs": [ "<(oci_include_dir)" ],
