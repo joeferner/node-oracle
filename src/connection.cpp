@@ -75,12 +75,12 @@ Handle<Value> Connection::Execute(const Arguments& args) {
 Handle<Value> Connection::Close(const Arguments& args) {
   HandleScope scope;
   try {
-	  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
-	  connection->closeConnection();
+    Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
+    connection->closeConnection();
 
-	  return scope.Close(Undefined());
+    return scope.Close(Undefined());
   } catch (const exception& ex) {
-	  return scope.Close(ThrowException(Exception::Error(String::New(ex.what()))));
+    return scope.Close(ThrowException(Exception::Error(String::New(ex.what()))));
   }
 }
 
@@ -236,16 +236,16 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, vector<value
               } else {
                 stmt->registerOutParam(index, oracle::occi::OCCINUMBER);
               }
-            break;
+              break;
             }
           case OutParam::OCCIBLOB:
             stmt->registerOutParam(index, oracle::occi::OCCIBLOB);
             break;
           default:
             {
-                ostringstream oss;
-                oss << "SetValuesOnStatement: Unknown OutParam type: " << outParamType;
-                throw NodeOracleException(oss.str());
+              ostringstream oss;
+              oss << "SetValuesOnStatement: Unknown OutParam type: " << outParamType;
+              throw NodeOracleException(oss.str());
             }
         }
         outputParam = index;
@@ -286,7 +286,7 @@ void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, vector<
       case oracle::occi::OCCI_TYPECODE_DATE:
         col->type = VALUE_TYPE_DATE;
         break;
-      //Use OCI_TYPECODE from oro.h because occiCommon.h does not re-export these in its TypeCode enum
+        //Use OCI_TYPECODE from oro.h because occiCommon.h does not re-export these in its TypeCode enum
       case OCI_TYPECODE_TIMESTAMP:
       case OCI_TYPECODE_TIMESTAMP_TZ: //Timezone
       case OCI_TYPECODE_TIMESTAMP_LTZ: //Local Timezone
@@ -358,13 +358,8 @@ void Connection::EIO_AfterCommit(uv_work_t* req, int status) {
 
   Handle<Value> argv[2];
   argv[0] = Undefined();
-  v8::TryCatch tryCatch;
-  baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+  node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   delete baton;
-
-  if (tryCatch.HasCaught()) {
-    node::FatalException(tryCatch);
-  }
 
 }
 
@@ -382,13 +377,8 @@ void Connection::EIO_AfterRollback(uv_work_t* req, int status) {
 
   Handle<Value> argv[2];
   argv[0] = Undefined();
-  v8::TryCatch tryCatch;
-  baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+  node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   delete baton;
-
-  if (tryCatch.HasCaught()) {
-    node::FatalException(tryCatch);
-  }
 
 }
 
@@ -416,48 +406,48 @@ void Connection::EIO_Execute(uv_work_t* req) {
           output_t* output = *iterator;
           oracle::occi::ResultSet* rs;
           switch(output->type) {
-          case OutParam::OCCIINT:
-            output->intVal = stmt->getInt(output->index); 
-            break;
-          case OutParam::OCCISTRING:
-            output->strVal = string(stmt->getString(output->index));
-            break;
-          case OutParam::OCCIDOUBLE:
-            output->doubleVal = stmt->getDouble(output->index);
-            break;
-          case OutParam::OCCIFLOAT:
-            output->floatVal = stmt->getFloat(output->index);
-            break;
-          case OutParam::OCCICURSOR:
-            rs = stmt->getCursor(output->index);
-            CreateColumnsFromResultSet(rs, output->columns);
-            output->rows = new vector<row_t*>();
-            while(rs->next()) {
-              row_t* row = CreateRowFromCurrentResultSetRow(rs, output->columns);
-              output->rows->push_back(row);
-            }
-            break;
-          case OutParam::OCCICLOB:
-            output->clobVal = stmt->getClob(output->index);
-            break;
-          case OutParam::OCCIBLOB:
-            output->blobVal = stmt->getBlob(output->index);
-            break;
-          case OutParam::OCCIDATE:
-            output->dateVal = stmt->getDate(output->index);
-            break;
-          case OutParam::OCCITIMESTAMP:
-            output->timestampVal = stmt->getTimestamp(output->index);
-            break;
-          case OutParam::OCCINUMBER:
-            output->numberVal = stmt->getNumber(output->index);
-            break;
-          default:
-            {
+            case OutParam::OCCIINT:
+              output->intVal = stmt->getInt(output->index);
+              break;
+            case OutParam::OCCISTRING:
+              output->strVal = string(stmt->getString(output->index));
+              break;
+            case OutParam::OCCIDOUBLE:
+              output->doubleVal = stmt->getDouble(output->index);
+              break;
+            case OutParam::OCCIFLOAT:
+              output->floatVal = stmt->getFloat(output->index);
+              break;
+            case OutParam::OCCICURSOR:
+              rs = stmt->getCursor(output->index);
+              CreateColumnsFromResultSet(rs, output->columns);
+              output->rows = new vector<row_t*>();
+              while(rs->next()) {
+                row_t* row = CreateRowFromCurrentResultSetRow(rs, output->columns);
+                output->rows->push_back(row);
+              }
+              break;
+            case OutParam::OCCICLOB:
+              output->clobVal = stmt->getClob(output->index);
+              break;
+            case OutParam::OCCIBLOB:
+              output->blobVal = stmt->getBlob(output->index);
+              break;
+            case OutParam::OCCIDATE:
+              output->dateVal = stmt->getDate(output->index);
+              break;
+            case OutParam::OCCITIMESTAMP:
+              output->timestampVal = stmt->getTimestamp(output->index);
+              break;
+            case OutParam::OCCINUMBER:
+              output->numberVal = stmt->getNumber(output->index);
+              break;
+            default:
+              {
                 ostringstream oss;
                 oss << "Unknown OutParam type: " << output->type;
                 throw NodeOracleException(oss.str());
-            }
+              }
           }
         }
       }
@@ -476,7 +466,7 @@ void Connection::EIO_Execute(uv_work_t* req) {
   } catch(NodeOracleException &ex) {
     baton->error = new string(ex.getMessage());
   } catch (const exception& ex) {
-	baton->error = new string(ex.what());
+    baton->error = new string(ex.what());
   } catch (...) {
     baton->error = new string("Unknown Error");
   }
@@ -500,37 +490,37 @@ void CallDateMethod(v8::Local<v8::Date> date, const char* methodName, int val) {
 }
 
 Local<Date> OracleDateToV8Date(oracle::occi::Date* d) {
-	int year;
-	unsigned int month, day, hour, min, sec;
-	d->getDate(year, month, day, hour, min, sec);
-	Local<Date> date = Date::Cast(*Date::New(0.0));
-	CallDateMethod(date, "setUTCMilliseconds", 0);
-	CallDateMethod(date, "setUTCSeconds", sec);
-	CallDateMethod(date, "setUTCMinutes", min);
-	CallDateMethod(date, "setUTCHours", hour);
-	CallDateMethod(date, "setUTCDate", day);
-	CallDateMethod(date, "setUTCMonth", month - 1);
-	CallDateMethod(date, "setUTCFullYear", year);
-	return date;
+  int year;
+  unsigned int month, day, hour, min, sec;
+  d->getDate(year, month, day, hour, min, sec);
+  Local<Date> date = Date::Cast(*Date::New(0.0));
+  CallDateMethod(date, "setUTCMilliseconds", 0);
+  CallDateMethod(date, "setUTCSeconds", sec);
+  CallDateMethod(date, "setUTCMinutes", min);
+  CallDateMethod(date, "setUTCHours", hour);
+  CallDateMethod(date, "setUTCDate", day);
+  CallDateMethod(date, "setUTCMonth", month - 1);
+  CallDateMethod(date, "setUTCFullYear", year);
+  return date;
 }
 
 Local<Date> OracleTimestampToV8Date(oracle::occi::Timestamp* d) {
-	int year;
-	unsigned int month, day, hour, min, sec, fs, ms;
-	d->getDate(year, month, day);
-	d->getTime(hour, min, sec, fs);
-	Local<Date> date = Date::Cast(*Date::New(0.0));
-	//occi always returns nanoseconds, regardless of precision set on timestamp column
-	ms = (fs / 1000000.0) + 0.5; // add 0.5 to round to nearest millisecond
+  int year;
+  unsigned int month, day, hour, min, sec, fs, ms;
+  d->getDate(year, month, day);
+  d->getTime(hour, min, sec, fs);
+  Local<Date> date = Date::Cast(*Date::New(0.0));
+  //occi always returns nanoseconds, regardless of precision set on timestamp column
+  ms = (fs / 1000000.0) + 0.5; // add 0.5 to round to nearest millisecond
 
-	CallDateMethod(date, "setUTCMilliseconds", ms);
-	CallDateMethod(date, "setUTCSeconds", sec);
-	CallDateMethod(date, "setUTCMinutes", min);
-	CallDateMethod(date, "setUTCHours", hour);
-	CallDateMethod(date, "setUTCDate", day);
-	CallDateMethod(date, "setUTCMonth", month - 1);
-	CallDateMethod(date, "setUTCFullYear", year);
-	return date;
+  CallDateMethod(date, "setUTCMilliseconds", ms);
+  CallDateMethod(date, "setUTCSeconds", sec);
+  CallDateMethod(date, "setUTCMinutes", min);
+  CallDateMethod(date, "setUTCHours", hour);
+  CallDateMethod(date, "setUTCDate", day);
+  CallDateMethod(date, "setUTCMonth", month - 1);
+  CallDateMethod(date, "setUTCFullYear", year);
+  return date;
 }
 
 Local<Object> Connection::CreateV8ObjectFromRow(vector<column_t*> columns, row_t* currentRow) {
@@ -577,17 +567,17 @@ Local<Object> Connection::CreateV8ObjectFromRow(vector<column_t*> columns, row_t
             v->open(oracle::occi::OCCI_LOB_READONLY);
 
             switch(col->charForm) {
-            case SQLCS_IMPLICIT:
-            	v->setCharSetForm(oracle::occi::OCCI_SQLCS_IMPLICIT);
+              case SQLCS_IMPLICIT:
+                v->setCharSetForm(oracle::occi::OCCI_SQLCS_IMPLICIT);
                 break;
-            case SQLCS_NCHAR:
-            	v->setCharSetForm(oracle::occi::OCCI_SQLCS_NCHAR);
+              case SQLCS_NCHAR:
+                v->setCharSetForm(oracle::occi::OCCI_SQLCS_NCHAR);
                 break;
-            case SQLCS_EXPLICIT:
-            	v->setCharSetForm(oracle::occi::OCCI_SQLCS_EXPLICIT);
+              case SQLCS_EXPLICIT:
+                v->setCharSetForm(oracle::occi::OCCI_SQLCS_EXPLICIT);
                 break;
-            case SQLCS_FLEXIBLE:
-            	v->setCharSetForm(oracle::occi::OCCI_SQLCS_FLEXIBLE);
+              case SQLCS_FLEXIBLE:
+                v->setCharSetForm(oracle::occi::OCCI_SQLCS_FLEXIBLE);
                 break;
             }
 
@@ -600,9 +590,9 @@ Local<Object> Connection::CreateV8ObjectFromRow(vector<column_t*> columns, row_t
             int numBytesRead = instream->readBuffer(buffer, chunkSize);
             int totalBytesRead = 0;
             while (numBytesRead != -1) {
-                totalBytesRead += numBytesRead;
-                columnVal.append(buffer);
-                numBytesRead = instream->readBuffer(buffer, chunkSize);
+              totalBytesRead += numBytesRead;
+              columnVal.append(buffer);
+              numBytesRead = instream->readBuffer(buffer, chunkSize);
             }
 
             v->closeStream(instream);
@@ -632,7 +622,7 @@ Local<Object> Connection::CreateV8ObjectFromRow(vector<column_t*> columns, row_t
             v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
             obj->Set(String::New(col->name.c_str()), v8Buffer);
             delete v;
-            delete[] buffer;            
+            delete[] buffer;
             break;
           }
           break;
@@ -668,47 +658,46 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
   try {
     Handle<Value> argv[2];
     handleResult(baton, argv);
-    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   } catch(NodeOracleException &ex) {
     Handle<Value> argv[2];
     argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
     argv[1] = Undefined();
-    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   } catch(const exception &ex) {
-	    Handle<Value> argv[2];
-	    argv[0] = Exception::Error(String::New(ex.what()));
-	    argv[1] = Undefined();
-	    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    Handle<Value> argv[2];
+    argv[0] = Exception::Error(String::New(ex.what()));
+    argv[1] = Undefined();
+    node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   }
 
   delete baton;
 }
 
 void Connection::handleResult(ExecuteBaton* baton, Handle<Value> (&argv)[2]) {
-try {
-    if(baton->error) {
-      argv[0] = Exception::Error(String::New(baton->error->c_str()));
-      argv[1] = Undefined();
+  if(baton->error) {
+    argv[0] = Exception::Error(String::New(baton->error->c_str()));
+    argv[1] = Undefined();
+  } else {
+    argv[0] = Undefined();
+    if(baton->rows) {
+      argv[1] = CreateV8ArrayFromRows(baton->columns, baton->rows);
     } else {
-      argv[0] = Undefined();
-      if(baton->rows) {
-        argv[1] = CreateV8ArrayFromRows(baton->columns, baton->rows);
-      } else {
-        Local<Object> obj = Object::New();
-        obj->Set(String::New("updateCount"), Integer::New(baton->updateCount));
+      Local<Object> obj = Object::New();
+      obj->Set(String::New("updateCount"), Integer::New(baton->updateCount));
 
-        /* Note: attempt to keep backward compatability here: existing users of this library will have code that expects a single out param
-                 called 'returnParam'. For multiple out params, the first output will continue to be called 'returnParam' and subsequent outputs
-                 will be called 'returnParamX'.
-        */
-        uint32_t index = 0;
-        for (vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator, index++) {
-          output_t* output = *iterator;
-          stringstream ss;
-          ss << "returnParam";
-          if(index > 0) ss << index;
-          string returnParam(ss.str());
-          switch(output->type) {
+      /* Note: attempt to keep backward compatability here: existing users of this library will have code that expects a single out param
+         called 'returnParam'. For multiple out params, the first output will continue to be called 'returnParam' and subsequent outputs
+         will be called 'returnParamX'.
+         */
+      uint32_t index = 0;
+      for (vector<output_t*>::iterator iterator = baton->outputs->begin(), end = baton->outputs->end(); iterator != end; ++iterator, index++) {
+        output_t* output = *iterator;
+        stringstream ss;
+        ss << "returnParam";
+        if(index > 0) ss << index;
+        string returnParam(ss.str());
+        switch(output->type) {
           case OutParam::OCCIINT:
             obj->Set(String::New(returnParam.c_str()), Integer::New(output->intVal));
             break;
@@ -770,27 +759,15 @@ try {
             break;
           default:
             {
-                 ostringstream oss;
-                 oss << "Unknown OutParam type: " << output->type;
-                 throw NodeOracleException(oss.str());
-             }
-          }
+              ostringstream oss;
+              oss << "Unknown OutParam type: " << output->type;
+              throw NodeOracleException(oss.str());
+            }
         }
-        argv[1] = obj;
       }
+      argv[1] = obj;
     }
-  } catch(NodeOracleException &ex) {
-    Handle<Value> argv[2];
-    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
-    argv[1] = Undefined();
-    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
-  } catch(const std::exception &ex) {
-	    Handle<Value> argv[2];
-	    argv[0] = Exception::Error(String::New(ex.what()));
-	    argv[1] = Undefined();
-	    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
   }
-
 }
 
 void Connection::setConnection(oracle::occi::Environment* environment, oracle::occi::Connection* connection) {
