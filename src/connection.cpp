@@ -353,13 +353,8 @@ void Connection::EIO_AfterCommit(uv_work_t* req, int status) {
 
   Handle<Value> argv[2];
   argv[0] = Undefined();
-  v8::TryCatch tryCatch;
-  baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+  node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   delete baton;
-
-  if (tryCatch.HasCaught()) {
-    node::FatalException(tryCatch);
-  }
 
 }
 
@@ -377,13 +372,8 @@ void Connection::EIO_AfterRollback(uv_work_t* req, int status) {
 
   Handle<Value> argv[2];
   argv[0] = Undefined();
-  v8::TryCatch tryCatch;
-  baton->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+  node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   delete baton;
-
-  if (tryCatch.HasCaught()) {
-    node::FatalException(tryCatch);
-  }
 
 }
 
@@ -663,17 +653,17 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
   try {
     Handle<Value> argv[2];
     handleResult(baton, argv);
-    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   } catch(NodeOracleException &ex) {
     Handle<Value> argv[2];
     argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
     argv[1] = Undefined();
-    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   } catch(const exception &ex) {
-	    Handle<Value> argv[2];
-	    argv[0] = Exception::Error(String::New(ex.what()));
-	    argv[1] = Undefined();
-	    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    Handle<Value> argv[2];
+    argv[0] = Exception::Error(String::New(ex.what()));
+    argv[1] = Undefined();
+    node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   }
 
   delete baton;
