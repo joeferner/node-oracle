@@ -680,7 +680,6 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
 }
 
 void Connection::handleResult(ExecuteBaton* baton, Handle<Value> (&argv)[2]) {
-try {
     if(baton->error) {
       argv[0] = Exception::Error(String::New(baton->error->c_str()));
       argv[1] = Undefined();
@@ -774,18 +773,6 @@ try {
         argv[1] = obj;
       }
     }
-  } catch(NodeOracleException &ex) {
-    Handle<Value> argv[2];
-    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
-    argv[1] = Undefined();
-    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
-  } catch(const std::exception &ex) {
-	    Handle<Value> argv[2];
-	    argv[0] = Exception::Error(String::New(ex.what()));
-	    argv[1] = Undefined();
-	    baton->callback->Call(Context::GetCurrent()->Global(), 2, argv);
-  }
-
 }
 
 void Connection::setConnection(oracle::occi::Environment* environment, oracle::occi::Connection* connection) {
