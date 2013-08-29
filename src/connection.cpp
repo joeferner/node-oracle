@@ -149,8 +149,13 @@ Handle<Value> Connection::SetAutoCommit(const Arguments& args) {
 
 void Connection::closeConnection() {
   if(m_environment && m_connection) {
-    m_environment->terminateConnection(m_connection);
-    m_connection = NULL;
+    try {
+      m_environment->terminateConnection(m_connection);
+      m_connection = NULL;
+    } catch (oracle::occi::SQLException &ex) {
+      m_connection = NULL;
+      throw; // rethrow to allow caller to catch and rethrow in V8 scope
+    }
   }
 }
 
