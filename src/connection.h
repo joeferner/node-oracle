@@ -27,6 +27,7 @@ public:
   static Handle<Value> Commit(const Arguments& args);
   static Handle<Value> Rollback(const Arguments& args);
   static Handle<Value> SetAutoCommit(const Arguments& args);
+  static Handle<Value> SetPrefetchRowCount(const Arguments& args);
   static Persistent<FunctionTemplate> constructorTemplate;
   static void EIO_Execute(uv_work_t* req);
   static void EIO_AfterExecute(uv_work_t* req, int status);
@@ -53,6 +54,7 @@ private:
   oracle::occi::Connection* m_connection;
   oracle::occi::Environment* m_environment;
   bool m_autoCommit;
+  int m_prefetchRowCount;
 };
 
 #endif

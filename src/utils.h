@@ -12,6 +12,11 @@
     return ThrowException(Exception::TypeError(String::New("Argument " #I " must be a bool")));      \
   bool VAR = args[I]->IsTrue();
 
+#define REQ_INT_ARG(I, VAR)                                                                         \
+  if (args.Length() <= (I) || !args[I]->IsNumber())                                                 \
+    return ThrowException(Exception::TypeError(String::New("Argument " #I " must be an integer")));      \
+  int VAR = args[I]->NumberValue();
+
 #define REQ_STRING_ARG(I, VAR)                                                                       \
   if (args.Length() <= (I) || !args[I]->IsString())                                                  \
     return ThrowException(Exception::TypeError(String::New("Argument " #I " must be a string")));    \
