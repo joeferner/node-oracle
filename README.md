@@ -248,6 +248,15 @@ connection.execute("call myProc(:1)", [new oracle.OutParam(oracle.OCCIINT, {in: 
 ```
 
 
+## Connection options
+
+The following options can be set on the connection:
+
+```
+connection.setAutoCommit(true/false);
+connection.setPrefetchRowCount(count);
+```
+
 # Develop
 
 ## Install Oracle/Oracle Express

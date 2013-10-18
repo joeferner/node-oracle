@@ -25,6 +25,7 @@ void Connection::Init(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "close", Close);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "isConnected", IsConnected);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "setAutoCommit", SetAutoCommit);
+  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "setPrefetchRowCount", SetPrefetchRowCount);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "commit", Commit);
   NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "rollback", Rollback);
 
@@ -39,7 +40,7 @@ Handle<Value> Connection::New(const Arguments& args) {
   return scope.Close(args.This());
 }
 
-Connection::Connection():m_connection(NULL), m_environment(NULL), m_autoCommit(true) {
+Connection::Connection():m_connection(NULL), m_environment(NULL), m_autoCommit(true), m_prefetchRowCount(0) {
 }
 
 Connection::~Connection() {
@@ -144,6 +145,14 @@ Handle<Value> Connection::SetAutoCommit(const Arguments& args) {
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
   REQ_BOOL_ARG(0, autoCommit);
   connection->m_autoCommit = autoCommit;
+  return scope.Close(Undefined());
+}
+
+Handle<Value> Connection::SetPrefetchRowCount(const Arguments& args) {
+  HandleScope scope;
+  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
+  REQ_INT_ARG(0, prefetchRowCount);
+  connection->m_prefetchRowCount = prefetchRowCount;
   return scope.Close(Undefined());
 }
 
@@ -396,6 +405,7 @@ void Connection::EIO_Execute(uv_work_t* req) {
     }
     stmt = baton->connection->m_connection->createStatement(baton->sql);
     stmt->setAutoCommit(baton->connection->m_autoCommit);
+    if (baton->connection->m_prefetchRowCount > 0) stmt->setPrefetchRowCount(baton->connection->m_prefetchRowCount);
     int outputParam = SetValuesOnStatement(stmt, baton->values);
 
     int status = stmt->execute();
