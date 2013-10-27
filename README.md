@@ -14,6 +14,15 @@ For Windows, please make sure 12_1 version is used.
 
 On MacOS or Linux:
 
+> There is an experimental script that checks the environment and in most cases only needs OCI_HOME
+> to be set:
+>
+> `   source pre_install_check.sh`
+> 
+> it checks for the necessary environment variables, checks (and creates) the necessary links, 
+> installs missing libraries etc.
+> At this time the script is to be considered 'experimental' (use at your own risk).
+
 1. Set up the following environment variables
 
 MacOS/Linux:
