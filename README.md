@@ -32,7 +32,9 @@ export OCI_HOME=<directory of Oracle instant client>
 export OCI_LIB_DIR=$OCI_HOME
 export OCI_INCLUDE_DIR=$OCI_HOME/sdk/include
 export OCI_VERSION=<the instant client major version number> # Optional. Default is 11.
+export NLS_LANG=AMERICAN_AMERICA.UTF8
 ```
+__If you do not set NLS_LANG, returned Chinese may be garbled.__
 
 2. Create the following symbolic links
 
