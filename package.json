@@ -2,7 +2,7 @@
   "name": "oracle",
   "description": "Oracle database driver",
   "keywords": ["database", "db", "oracle"],
-  "homepage": "https://github.com/nearinfinity/node-oracle",
+  "homepage": "https://github.com/joeferner/node-oracle",
   "version": "0.3.4",
   "engines": {
     "node": ">=0.6.0"
@@ -18,11 +18,11 @@
     }
   ],
   "bugs": {
-    "url": "https://github.com/nearinfinity/node-oracle/issues"
+    "url": "https://github.com/joeferner/node-oracle/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/nearinfinity/node-oracle.git"
+    "url": "git://github.com/joeferner/node-oracle.git"
   },
   "dependencies": {
   },
