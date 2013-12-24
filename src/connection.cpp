@@ -190,8 +190,8 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, vector<value
       case VALUE_TYPE_NUMBER:
         stmt->setNumber(index, *((oracle::occi::Number*)val->value));
         break;
-      case VALUE_TYPE_DATE:
-        stmt->setDate(index, *((oracle::occi::Date*)val->value));
+      case VALUE_TYPE_TIMESTAMP:
+        stmt->setTimestamp(index, *((oracle::occi::Timestamp*)val->value));
         break;
       case VALUE_TYPE_OUTPUT:
         outParam = static_cast<OutParam*>(val->value);

@@ -60,15 +60,15 @@ double CallDateMethod(v8::Local<v8::Date> date, const char* methodName) {
   return Local<Number>::Cast(result)->Value();
 }
 
-oracle::occi::Date* V8DateToOcciDate(oracle::occi::Environment* env, v8::Local<v8::Date> val) {
+oracle::occi::Timestamp* V8DateToOcciDate(oracle::occi::Environment* env, v8::Local<v8::Date> val) {
   int year = CallDateMethod(val, "getUTCFullYear");
   int month = CallDateMethod(val, "getUTCMonth") + 1;
   int day = CallDateMethod(val, "getUTCDate");
   int hours = CallDateMethod(val, "getUTCHours");
   int minutes = CallDateMethod(val, "getUTCMinutes");
   int seconds = CallDateMethod(val, "getUTCSeconds");
-  //TODO: int milliseconds = CallDateMethod(val, "getUTCMilliseconds");
-  oracle::occi::Date* d = new oracle::occi::Date(env, year, month, day, hours, minutes, seconds);
+  int fs = CallDateMethod(val, "getUTCMilliseconds") * 1000000; // occi::Timestamp() wants nanoseconds
+  oracle::occi::Timestamp* d = new oracle::occi::Timestamp(env, year, month, day, hours, minutes, seconds, fs);
   return d;
 }
 
@@ -96,7 +96,7 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
 
     // date
     else if(val->IsDate()) {
-      value->type = VALUE_TYPE_DATE;
+      value->type = VALUE_TYPE_TIMESTAMP;
       value->value = V8DateToOcciDate(baton->connection->getEnvironment(), v8::Date::Cast(*val));
       baton->values.push_back(value);
     }

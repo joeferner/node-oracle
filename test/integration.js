@@ -174,5 +174,28 @@ exports['IntegrationTest'] = nodeunit.testCase({
           test.done();
         });
       });
-  } 
+  },
+
+  "date_types_insert_milliseconds": function(test) {
+    var self = this,
+        date = new Date(2013, 11, 24, 1, 2, 59, 999);
+
+    self.connection.execute(
+      "INSERT INTO datatype_test (tdate, ttimestamp) VALUES (:1, :2)",
+      [date, date],
+      function(err, results) {
+        if(err) { console.error(err); return; }
+        test.ok(results.updateCount === 1);
+
+        self.connection.execute("SELECT tdate, ttimestamp FROM datatype_test", [], function(err, results) {
+          if(err) { console.error(err); return; }
+		  test.equal(results.length, 1);
+		  dateWithoutMs = new Date(date);
+		  dateWithoutMs.setMilliseconds(0);
+		  test.equal(results[0]['TDATE'].getTime(), dateWithoutMs.getTime(), "Milliseconds should not be stored for DATE");
+          test.equal(results[0]['TTIMESTAMP'].getTime(), date.getTime(), "Milliseconds should be stored for TIMESTAMP");
+          test.done();
+        });
+      });
+  }
 });
