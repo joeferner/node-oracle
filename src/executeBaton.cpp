@@ -61,12 +61,13 @@ double CallDateMethod(v8::Local<v8::Date> date, const char* methodName) {
 }
 
 oracle::occi::Date* V8DateToOcciDate(oracle::occi::Environment* env, v8::Local<v8::Date> val) {
-  int year = CallDateMethod(val, "getFullYear");
-  int month = CallDateMethod(val, "getMonth") + 1;
-  int day = CallDateMethod(val, "getDate");
-  int hours = CallDateMethod(val, "getHours");
-  int minutes = CallDateMethod(val, "getMinutes");
-  int seconds = CallDateMethod(val, "getSeconds");
+  int year = CallDateMethod(val, "getUTCFullYear");
+  int month = CallDateMethod(val, "getUTCMonth") + 1;
+  int day = CallDateMethod(val, "getUTCDate");
+  int hours = CallDateMethod(val, "getUTCHours");
+  int minutes = CallDateMethod(val, "getUTCMinutes");
+  int seconds = CallDateMethod(val, "getUTCSeconds");
+  //TODO: int milliseconds = CallDateMethod(val, "getUTCMilliseconds");
   oracle::occi::Date* d = new oracle::occi::Date(env, year, month, day, hours, minutes, seconds);
   return d;
 }

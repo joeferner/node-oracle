@@ -154,13 +154,43 @@ if (!connection.isConnected()) {
 }
 ```
 
+### Dates
+For DATE and TIMESTAMP types, the driver uses the UTC methods from the Javascript Date object. This means the DATE
+value stored will match the value of `new Date().toISOString()` on your client machine.  Consider this example
+for a client machine in "GMT-0700":
 
-# Limitations
+Table schema:
 
-* Currently no support for column type "Timestamp With Timezone" (Issue #67)
+```sql
+CREATE TABLE date_test (mydate DATE)
+```
+
+Javascript code:
+
+```javascript
+...
+	var date = new Date(2013, 11, 24, 18, 0, 1);  // Client timezone dependent
+	console.log(date.toString());      // Tue Dec 24 2013 18:00:01 GMT-0700 (MST)
+	console.log(date.toISOString());   // 2013-12-25T01:00:01.000Z
+
+	connection.execute(
+		"INSERT INTO date_test (mydate) VALUES (:1) " +
+			"RETURNING mydate, to_char(mydate, 'YYYY-MM-DD HH24:MI:SS') INTO :2, :3",
+		[date, new oracle.OutParam(oracle.OCCIDATE), new oracle.OutParam(oracle.OCCISTRING)],
+		function(err, results) {
+			console.log(results.returnParam.toString());  // Tue Dec 24 2013 18:00:01 GMT-0700 (MST)
+			console.log(results.returnParam1);            // 2013-12-25 01:00:01
+		}
+	);
+...
+```
+
+# Limitations/Caveats
+
 * Currently no native support for connection pooling (forthcoming; use generic-pool for now.)
-* Use getUTC... javascript functions when dealing with dates (See Github discussion on 44b872f)
-
+* Currently no support for column type "Timestamp With Timezone" (Issue #67)
+* While the Oracle TIMESTAMP type provides fractional seconds up to 9 digits (nanoseconds), this will be rounded
+  to the nearest millisecond when converted to a Javascript date (a _data loss_).
 
 # Development
 * Clone the source repo
