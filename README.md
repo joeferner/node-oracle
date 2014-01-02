@@ -50,7 +50,7 @@ oracle.connect(connectData, function(err, connection) {
 		console.log(results);
 		connection.close(); // call only when query is finished executing
 	});
-}
+});
 ```
 
 ### Alternative connection using TNS
