@@ -55,7 +55,7 @@ Handle<Value> Connection::Execute(const Arguments& args) {
   REQ_ARRAY_ARG(1, values);
   REQ_FUN_ARG(2, callback);
 
-  String::AsciiValue sqlVal(sql);
+  String::Utf8Value sqlVal(sql);
 
   ExecuteBaton* baton;
   try {
@@ -792,7 +792,7 @@ Handle<Value> Connection::ExecuteSync(const Arguments& args) {
   REQ_STRING_ARG(0, sql);
   REQ_ARRAY_ARG(1, values);
 
-  String::AsciiValue sqlVal(sql);
+  String::Utf8Value sqlVal(sql);
 
   ExecuteBaton* baton;
   try {

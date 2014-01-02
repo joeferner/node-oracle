@@ -94,7 +94,7 @@ exports['IntegrationTest'] = nodeunit.testCase({
 
   "datatypes": function(test) {
     var self = this;
-	var date1 = new Date(2011, 10, 30, 1, 2, 3);
+    var date1 = new Date(2011, 10, 30, 1, 2, 3);
     var date2 = new Date(2011, 11, 1, 1, 2, 3);
     self.connection.execute(
       "INSERT INTO datatype_test "
@@ -189,13 +189,25 @@ exports['IntegrationTest'] = nodeunit.testCase({
 
         self.connection.execute("SELECT tdate, ttimestamp FROM datatype_test", [], function(err, results) {
           if(err) { console.error(err); return; }
-		  test.equal(results.length, 1);
-		  dateWithoutMs = new Date(date);
-		  dateWithoutMs.setMilliseconds(0);
-		  test.equal(results[0]['TDATE'].getTime(), dateWithoutMs.getTime(), "Milliseconds should not be stored for DATE");
+          test.equal(results.length, 1);
+          dateWithoutMs = new Date(date);
+          dateWithoutMs.setMilliseconds(0);
+          test.equal(results[0]['TDATE'].getTime(), dateWithoutMs.getTime(), "Milliseconds should not be stored for DATE");
           test.equal(results[0]['TTIMESTAMP'].getTime(), date.getTime(), "Milliseconds should be stored for TIMESTAMP");
           test.done();
         });
       });
+  },
+
+  "utf8_chars_in_query": function(test) {
+    var self = this,
+        cyrillicString = "тест";
+
+    self.connection.execute("SELECT '" + cyrillicString + "' as test FROM DUAL", [], function(err, results) {
+      if(err) { console.error(err); return; }
+      test.equal(results.length, 1);
+      test.equal(results[0]['TEST'], cyrillicString, "UTF8 characters in sql query should be preserved");
+      test.done();
+    });
   }
 });
