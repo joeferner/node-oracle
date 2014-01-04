@@ -172,7 +172,8 @@ void RandomBytesFree(char* data, void* hint) {
   delete[] data;
 }
 
-int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, vector<value_t*> &values) {
+int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, ExecuteBaton* baton) {
+  std::vector<value_t*> &values = baton->values;
   uint32_t index = 1;
   int outputParam = -1;
   OutParam * outParam = NULL;
@@ -254,19 +255,21 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, vector<value
             {
               ostringstream oss;
               oss << "SetValuesOnStatement: Unknown OutParam type: " << outParamType;
-              throw NodeOracleException(oss.str());
+              baton->error = new std::string(oss.str());
+              return -2;
             }
         }
         outputParam = index;
         break;
       default:
-        throw NodeOracleException("SetValuesOnStatement: Unhandled value type");
+        baton->error = new std::string("SetValuesOnStatement: Unhandled value type");
+        return -2;
     }
   }
   return outputParam;
 }
 
-void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, vector<column_t*> &columns) {
+void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, ExecuteBaton* baton, vector<column_t*> &columns) {
   vector<oracle::occi::MetaData> metadata = rs->getColumnListMetaData();
   for (vector<oracle::occi::MetaData>::iterator iterator = metadata.begin(), end = metadata.end(); iterator != end; ++iterator) {
     oracle::occi::MetaData metadata = *iterator;
@@ -308,14 +311,14 @@ void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, vector<
         ostringstream message;
         message << "CreateColumnsFromResultSet: Unhandled oracle data type: " << type;
         delete col;
-        throw NodeOracleException(message.str());
-        break;
+        baton->error = new std::string(message.str());
+        return;
     }
     columns.push_back(col);
   }
 }
 
-row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs, vector<column_t*> &columns) {
+row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs, ExecuteBaton* baton, vector<column_t*> &columns) {
   row_t* row = new row_t();
   int colIndex = 1;
   for (vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
@@ -345,8 +348,9 @@ row_t* Connection::CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs,
         default:
           ostringstream message;
           message << "CreateRowFromCurrentResultSetRow: Unhandled type: " << col->type;
-          throw NodeOracleException(message.str());
-          break;
+          baton->error = new std::string(message.str());
+          delete row;
+          return NULL;
       }
     }
   }
@@ -401,12 +405,14 @@ void Connection::EIO_Execute(uv_work_t* req) {
   oracle::occi::ResultSet* rs = NULL;
   try {
     if(! baton->connection->m_connection) {
-      throw NodeOracleException("Connection already closed");
+      baton->error = new std::string("Connection already closed");
+      return;
     }
     stmt = baton->connection->m_connection->createStatement(baton->sql);
     stmt->setAutoCommit(baton->connection->m_autoCommit);
     if (baton->connection->m_prefetchRowCount > 0) stmt->setPrefetchRowCount(baton->connection->m_prefetchRowCount);
-    int outputParam = SetValuesOnStatement(stmt, baton->values);
+    int outputParam = SetValuesOnStatement(stmt, baton);
+    if (baton->error) goto cleanup;
 
     int status = stmt->execute();
     if(status == oracle::occi::Statement::UPDATE_COUNT_AVAILABLE) {
@@ -430,10 +436,12 @@ void Connection::EIO_Execute(uv_work_t* req) {
               break;
             case OutParam::OCCICURSOR:
               rs = stmt->getCursor(output->index);
-              CreateColumnsFromResultSet(rs, output->columns);
+              CreateColumnsFromResultSet(rs, baton, output->columns);
+              if (baton->error) goto cleanup;
               output->rows = new vector<row_t*>();
               while(rs->next()) {
-                row_t* row = CreateRowFromCurrentResultSetRow(rs, output->columns);
+                row_t* row = CreateRowFromCurrentResultSetRow(rs, baton, output->columns);
+                if (baton->error) goto cleanup;
                 output->rows->push_back(row);
               }
               break;
@@ -456,18 +464,21 @@ void Connection::EIO_Execute(uv_work_t* req) {
               {
                 ostringstream oss;
                 oss << "Unknown OutParam type: " << output->type;
-                throw NodeOracleException(oss.str());
+                baton->error = new std::string(oss.str());
+                goto cleanup;
               }
           }
         }
       }
     } else if(status == oracle::occi::Statement::RESULT_SET_AVAILABLE) {
       rs = stmt->getResultSet();
-      CreateColumnsFromResultSet(rs, baton->columns);
+      CreateColumnsFromResultSet(rs, baton, baton->columns);
+      if (baton->error) goto cleanup;
       baton->rows = new vector<row_t*>();
 
       while(rs->next()) {
-        row_t* row = CreateRowFromCurrentResultSetRow(rs, baton->columns);
+        row_t* row = CreateRowFromCurrentResultSetRow(rs, baton, baton->columns);
+        if (baton->error) goto cleanup;
         baton->rows->push_back(row);
       }
     }
@@ -480,7 +491,7 @@ void Connection::EIO_Execute(uv_work_t* req) {
   } catch (...) {
     baton->error = new string("Unknown Error");
   }
-
+cleanup:
   if(stmt && rs) {
     stmt->closeResultSet(rs);
     rs = NULL;
@@ -533,7 +544,7 @@ Local<Date> OracleTimestampToV8Date(oracle::occi::Timestamp* d) {
   return date;
 }
 
-Local<Object> Connection::CreateV8ObjectFromRow(vector<column_t*> columns, row_t* currentRow) {
+Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, vector<column_t*> columns, row_t* currentRow) {
   Local<Object> obj = Object::New();
   uint32_t colIndex = 0;
   for (vector<column_t*>::iterator iterator = columns.begin(), end = columns.end(); iterator != end; ++iterator, colIndex++) {
@@ -639,21 +650,22 @@ Local<Object> Connection::CreateV8ObjectFromRow(vector<column_t*> columns, row_t
         default:
           ostringstream oss;
           oss << "CreateV8ObjectFromRow: Unhandled type: " << col->type;
-          throw NodeOracleException(oss.str());
-          break;
+          baton->error = new std::string(oss.str());
+          return obj;
       }
     }
   }
   return obj;
 }
 
-Local<Array> Connection::CreateV8ArrayFromRows(vector<column_t*> columns, vector<row_t*>* rows) {
+Local<Array> Connection::CreateV8ArrayFromRows(ExecuteBaton* baton, vector<column_t*> columns, vector<row_t*>* rows) {
   size_t totalRows = rows->size();
   Local<Array> retRows = Array::New(totalRows);
   uint32_t index = 0;
   for (vector<row_t*>::iterator iterator = rows->begin(), end = rows->end(); iterator != end; ++iterator, index++) {
     row_t* currentRow = *iterator;
-    Local<Object> obj = CreateV8ObjectFromRow(columns, currentRow);
+    Local<Object> obj = CreateV8ObjectFromRow(baton, columns, currentRow);
+    if (baton->error) return retRows;
     retRows->Set(index, obj);
   }
   return retRows;
@@ -686,12 +698,14 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
 
 void Connection::handleResult(ExecuteBaton* baton, Handle<Value> (&argv)[2]) {
   if(baton->error) {
+failed:
     argv[0] = Exception::Error(String::New(baton->error->c_str()));
     argv[1] = Undefined();
   } else {
     argv[0] = Undefined();
     if(baton->rows) {
-      argv[1] = CreateV8ArrayFromRows(baton->columns, baton->rows);
+      argv[1] = CreateV8ArrayFromRows(baton, baton->columns, baton->rows);
+      if (baton->error) goto failed; // delete argv[1] ??
     } else {
       Local<Object> obj = Object::New();
       obj->Set(String::New("updateCount"), Integer::New(baton->updateCount));
@@ -721,7 +735,8 @@ void Connection::handleResult(ExecuteBaton* baton, Handle<Value> (&argv)[2]) {
             obj->Set(String::New(returnParam.c_str()), Number::New(output->floatVal));
             break;
           case OutParam::OCCICURSOR:
-            obj->Set(String::New(returnParam.c_str()), CreateV8ArrayFromRows(output->columns, output->rows));
+            obj->Set(String::New(returnParam.c_str()), CreateV8ArrayFromRows(baton, output->columns, output->rows));
+            if (baton->error) goto failed;
             break;
           case OutParam::OCCICLOB:
             {
@@ -771,7 +786,8 @@ void Connection::handleResult(ExecuteBaton* baton, Handle<Value> (&argv)[2]) {
             {
               ostringstream oss;
               oss << "Unknown OutParam type: " << output->type;
-              throw NodeOracleException(oss.str());
+              baton->error = new std::string(oss.str());
+              goto failed;
             }
         }
       }
