@@ -8,7 +8,7 @@ class RollbackBaton {
 public:
   RollbackBaton(Connection* connection, v8::Handle<v8::Function>* callback) {
     this->connection = connection;
-    this->callback = Persistent<Function>::New(*callback);
+    uni::Reset(this->callback, *callback);
   }
   ~RollbackBaton() {
     callback.Dispose();

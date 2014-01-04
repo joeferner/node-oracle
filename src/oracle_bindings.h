@@ -13,12 +13,12 @@
 using namespace node;
 using namespace v8;
 
-class OracleClient : ObjectWrap {
+class OracleClient : public ObjectWrap {
 public:
   static void Init(Handle<Object> target);
-  static Handle<Value> New(const Arguments& args);
-  static Handle<Value> Connect(const Arguments& args);
-  static Handle<Value> ConnectSync(const Arguments& args);
+  static uni::FunctionRetType New(const uni::FunctionArgs& args);
+  static uni::FunctionRetType Connect(const uni::FunctionArgs& args);
+  static uni::FunctionRetType ConnectSync(const uni::FunctionArgs& args);
   static void EIO_Connect(uv_work_t* req);
   static void EIO_AfterConnect(uv_work_t* req, int status);
 

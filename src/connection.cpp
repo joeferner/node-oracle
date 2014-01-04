@@ -4,7 +4,6 @@
 #include "commitBaton.h"
 #include "rollbackBaton.h"
 #include "outParam.h"
-#include "node_buffer.h"
 #include <vector>
 #include <node_version.h>
 #include <iostream>
@@ -13,31 +12,31 @@ using namespace std;
 Persistent<FunctionTemplate> Connection::constructorTemplate;
 
 void Connection::Init(Handle<Object> target) {
-  HandleScope scope;
+  HANDLE_SCOPE(scope);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
-  constructorTemplate = Persistent<FunctionTemplate>::New(t);
-  constructorTemplate->InstanceTemplate()->SetInternalFieldCount(1);
-  constructorTemplate->SetClassName(String::NewSymbol("Connection"));
+  uni::Reset(constructorTemplate, t);
+  uni::Deref(constructorTemplate)->InstanceTemplate()->SetInternalFieldCount(1);
+  uni::Deref(constructorTemplate)->SetClassName(String::NewSymbol("Connection"));
 
-  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "execute", Execute);
-  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "executeSync", ExecuteSync);
-  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "close", Close);
-  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "isConnected", IsConnected);
-  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "setAutoCommit", SetAutoCommit);
-  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "setPrefetchRowCount", SetPrefetchRowCount);
-  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "commit", Commit);
-  NODE_SET_PROTOTYPE_METHOD(constructorTemplate, "rollback", Rollback);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "execute", Execute);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "executeSync", ExecuteSync);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "close", Close);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "isConnected", IsConnected);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "setAutoCommit", SetAutoCommit);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "setPrefetchRowCount", SetPrefetchRowCount);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "commit", Commit);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "rollback", Rollback);
 
-  target->Set(String::NewSymbol("Connection"), constructorTemplate->GetFunction());
+  target->Set(String::NewSymbol("Connection"), uni::Deref(constructorTemplate)->GetFunction());
 }
 
-Handle<Value> Connection::New(const Arguments& args) {
-  HandleScope scope;
+uni::FunctionRetType Connection::New(const uni::FunctionArgs& args) {
+  HANDLE_SCOPE(scope);
 
   Connection *connection = new Connection();
   connection->Wrap(args.This());
-  return scope.Close(args.This());
+  SCOPE_RETURN(scope, args, args.This());
 }
 
 Connection::Connection():m_connection(NULL), m_environment(NULL), m_autoCommit(true), m_prefetchRowCount(0) {
@@ -47,8 +46,8 @@ Connection::~Connection() {
   closeConnection();
 }
 
-Handle<Value> Connection::Execute(const Arguments& args) {
-  HandleScope scope;
+uni::FunctionRetType Connection::Execute(const uni::FunctionArgs& args) {
+  HANDLE_SCOPE(scope);
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
 
   REQ_STRING_ARG(0, sql);
@@ -61,7 +60,7 @@ Handle<Value> Connection::Execute(const Arguments& args) {
   if (baton->error) {
     Local<String> message = String::New(baton->error->c_str());
     delete baton;
-    return scope.Close(ThrowException(Exception::Error(message)));
+    SCOPE_RETURN(scope, args, ThrowException(Exception::Error(message)));
   }
 
   uv_work_t* req = new uv_work_t();
@@ -70,34 +69,34 @@ Handle<Value> Connection::Execute(const Arguments& args) {
 
   connection->Ref();
 
-  return scope.Close(Undefined());
+  SCOPE_RETURN(scope, args, Undefined());
 }
 
-Handle<Value> Connection::Close(const Arguments& args) {
-  HandleScope scope;
+uni::FunctionRetType Connection::Close(const uni::FunctionArgs& args) {
+  HANDLE_SCOPE(scope);
   try {
     Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
     connection->closeConnection();
 
-    return scope.Close(Undefined());
+    SCOPE_RETURN(scope, args, Undefined());
   } catch (const exception& ex) {
-    return scope.Close(ThrowException(Exception::Error(String::New(ex.what()))));
+    SCOPE_RETURN(scope, args, ThrowException(Exception::Error(String::New(ex.what()))));
   }
 }
 
-Handle<Value> Connection::IsConnected(const Arguments& args) {
-  HandleScope scope;
+uni::FunctionRetType Connection::IsConnected(const uni::FunctionArgs& args) {
+  HANDLE_SCOPE(scope);
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
 
   if(connection && connection->m_connection) {
-    return scope.Close(Boolean::New(true));
+    SCOPE_RETURN(scope, args, Boolean::New(true));
   } else {
-    return scope.Close(Boolean::New(false));
+    SCOPE_RETURN(scope, args, Boolean::New(false));
   }
 }
 
-Handle<Value> Connection::Commit(const Arguments& args) {
-  HandleScope scope;
+uni::FunctionRetType Connection::Commit(const uni::FunctionArgs& args) {
+  HANDLE_SCOPE(scope);
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
 
   REQ_FUN_ARG(0, callback);
@@ -110,11 +109,11 @@ Handle<Value> Connection::Commit(const Arguments& args) {
 
   connection->Ref();
 
-  return scope.Close(Undefined());
+  SCOPE_RETURN(scope, args, Undefined());
 }
 
-Handle<Value> Connection::Rollback(const Arguments& args) {
-  HandleScope scope;
+uni::FunctionRetType Connection::Rollback(const uni::FunctionArgs& args) {
+  HANDLE_SCOPE(scope);
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
 
   REQ_FUN_ARG(0, callback);
@@ -127,23 +126,23 @@ Handle<Value> Connection::Rollback(const Arguments& args) {
 
   connection->Ref();
 
-  return scope.Close(Undefined());
+  SCOPE_RETURN(scope, args, Undefined());
 }
 
-Handle<Value> Connection::SetAutoCommit(const Arguments& args) {
-  HandleScope scope;
+uni::FunctionRetType Connection::SetAutoCommit(const uni::FunctionArgs& args) {
+  HANDLE_SCOPE(scope);
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
   REQ_BOOL_ARG(0, autoCommit);
   connection->m_autoCommit = autoCommit;
-  return scope.Close(Undefined());
+  SCOPE_RETURN(scope, args, Undefined());
 }
 
-Handle<Value> Connection::SetPrefetchRowCount(const Arguments& args) {
-  HandleScope scope;
+uni::FunctionRetType Connection::SetPrefetchRowCount(const uni::FunctionArgs& args) {
+  HANDLE_SCOPE(scope);
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
   REQ_INT_ARG(0, prefetchRowCount);
   connection->m_prefetchRowCount = prefetchRowCount;
-  return scope.Close(Undefined());
+  SCOPE_RETURN(scope, args, Undefined());
 }
 
 void Connection::closeConnection() {
@@ -354,14 +353,14 @@ void Connection::EIO_Commit(uv_work_t* req) {
 }
 
 void Connection::EIO_AfterCommit(uv_work_t* req, int status) {
-  HandleScope scope;
+  HANDLE_SCOPE(scope);
   CommitBaton* baton = static_cast<CommitBaton*>(req->data);
 
   baton->connection->Unref();
 
   Handle<Value> argv[2];
   argv[0] = Undefined();
-  node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
+  node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->callback), 2, argv);
   delete baton;
 
 }
@@ -373,14 +372,14 @@ void Connection::EIO_Rollback(uv_work_t* req) {
 }
 
 void Connection::EIO_AfterRollback(uv_work_t* req, int status) {
-  HandleScope scope;
+  HANDLE_SCOPE(scope);
   RollbackBaton* baton = static_cast<RollbackBaton*>(req->data);
 
   baton->connection->Unref();
 
   Handle<Value> argv[2];
   argv[0] = Undefined();
-  node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
+  node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->callback), 2, argv);
   delete baton;
 
 }
@@ -502,7 +501,7 @@ Local<Date> OracleDateToV8Date(oracle::occi::Date* d) {
   int year;
   unsigned int month, day, hour, min, sec;
   d->getDate(year, month, day, hour, min, sec);
-  Local<Date> date = Date::Cast(*Date::New(0.0));
+  Local<Date> date = DATE_CAST(Date::New(0.0));
   CallDateMethod(date, "setUTCMilliseconds", 0);
   CallDateMethod(date, "setUTCSeconds", sec);
   CallDateMethod(date, "setUTCMinutes", min);
@@ -518,10 +517,10 @@ Local<Date> OracleTimestampToV8Date(oracle::occi::Timestamp* d) {
   unsigned int month, day, hour, min, sec, fs, ms;
   d->getDate(year, month, day);
   d->getTime(hour, min, sec, fs);
-  Local<Date> date = Date::Cast(*Date::New(0.0));
   //occi always returns nanoseconds, regardless of precision set on timestamp column
   ms = (fs / 1000000.0) + 0.5; // add 0.5 to round to nearest millisecond
 
+  Local<Date> date = DATE_CAST(Date::New(0.0));
   CallDateMethod(date, "setUTCMilliseconds", ms);
   CallDateMethod(date, "setUTCSeconds", sec);
   CallDateMethod(date, "setUTCMinutes", min);
@@ -624,10 +623,10 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, vector<colu
             v->close();
 
             // convert to V8 buffer
-            node::Buffer *nodeBuff = node::Buffer::New(buffer, blobLength, RandomBytesFree, NULL);
+            uni::BufferType nodeBuff = node::Buffer::New(buffer, blobLength, RandomBytesFree, NULL);
             v8::Local<v8::Object> globalObj = v8::Context::GetCurrent()->Global();
             v8::Local<v8::Function> bufferConstructor = v8::Local<v8::Function>::Cast(globalObj->Get(v8::String::New("Buffer")));
-            v8::Handle<v8::Value> constructorArgs[3] = { nodeBuff->handle_, v8::Integer::New(blobLength), v8::Integer::New(0) };
+            v8::Handle<v8::Value> constructorArgs[3] = { BUFFER_TO_HANDLE(nodeBuff), v8::Integer::New(blobLength), v8::Integer::New(0) };
             v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
             obj->Set(String::New(col->name.c_str()), v8Buffer);
             delete v;
@@ -661,19 +660,19 @@ Local<Array> Connection::CreateV8ArrayFromRows(ExecuteBaton* baton, vector<colum
 
 void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
 
-  HandleScope scope;
+  HANDLE_SCOPE(scope);
   ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
 
   baton->connection->Unref();
   try {
     Handle<Value> argv[2];
     handleResult(baton, argv);
-    node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
+    node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->callback), 2, argv);
   } catch(const exception &ex) {
     Handle<Value> argv[2];
     argv[0] = Exception::Error(String::New(ex.what()));
     argv[1] = Undefined();
-    node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
+    node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->callback), 2, argv);
   }
 
   delete baton;
@@ -747,10 +746,10 @@ failed:
               output->blobVal.close();
 
               // convert to V8 buffer
-              node::Buffer *nodeBuff = node::Buffer::New(buffer, lobLength, RandomBytesFree, NULL);
+              uni::BufferType nodeBuff = node::Buffer::New(buffer, lobLength, RandomBytesFree, NULL);
               v8::Local<v8::Object> globalObj = v8::Context::GetCurrent()->Global();
               v8::Local<v8::Function> bufferConstructor = v8::Local<v8::Function>::Cast(globalObj->Get(v8::String::New("Buffer")));
-              v8::Handle<v8::Value> constructorArgs[3] = { nodeBuff->handle_, v8::Integer::New(lobLength), v8::Integer::New(0) };
+              v8::Handle<v8::Value> constructorArgs[3] = { BUFFER_TO_HANDLE(nodeBuff), v8::Integer::New(lobLength), v8::Integer::New(0) };
               v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
               obj->Set(String::New(returnParam.c_str()), v8Buffer);
               delete [] buffer;
@@ -784,8 +783,8 @@ void Connection::setConnection(oracle::occi::Environment* environment, oracle::o
   m_connection = connection;
 }
 
-Handle<Value> Connection::ExecuteSync(const Arguments& args) {
-  HandleScope scope;
+uni::FunctionRetType Connection::ExecuteSync(const uni::FunctionArgs& args) {
+  HANDLE_SCOPE(scope);
   Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
 
   REQ_STRING_ARG(0, sql);
@@ -797,7 +796,7 @@ Handle<Value> Connection::ExecuteSync(const Arguments& args) {
   if (baton->error) {
     Local<String> message = String::New(baton->error->c_str());
     delete baton;
-    return scope.Close(ThrowException(Exception::Error(message)));
+    SCOPE_RETURN(scope, args, ThrowException(Exception::Error(message)));
   }
 
   uv_work_t* req = new uv_work_t();
@@ -811,9 +810,9 @@ Handle<Value> Connection::ExecuteSync(const Arguments& args) {
 
   if(baton->error) {
     delete baton;
-    return scope.Close(ThrowException(argv[0]));
+    SCOPE_RETURN(scope, args, ThrowException(argv[0]));
   }
 
   delete baton;
-  return scope.Close(argv[1]);
+  SCOPE_RETURN(scope, args, argv[1]);
 }

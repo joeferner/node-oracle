@@ -8,7 +8,7 @@ class CommitBaton {
 public:
   CommitBaton(Connection* connection, v8::Handle<v8::Function>* callback) {
     this->connection = connection;
-    this->callback = Persistent<Function>::New(*callback);
+    uni::Reset(this->callback, *callback);
   }
   ~CommitBaton() {
     callback.Dispose();
