@@ -1,6 +1,5 @@
 
 #include "outParam.h"
-#include "nodeOracleException.h"
 #include <iostream>
 using namespace std;
 

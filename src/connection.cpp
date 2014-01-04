@@ -57,11 +57,11 @@ Handle<Value> Connection::Execute(const Arguments& args) {
 
   String::Utf8Value sqlVal(sql);
 
-  ExecuteBaton* baton;
-  try {
-    baton = new ExecuteBaton(connection, *sqlVal, &values, &callback);
-  } catch(NodeOracleException &ex) {
-    return scope.Close(ThrowException(Exception::Error(String::New(ex.getMessage().c_str()))));
+  ExecuteBaton* baton = new ExecuteBaton(connection, *sqlVal, &values, &callback);
+  if (baton->error) {
+    Local<String> message = String::New(baton->error->c_str());
+    delete baton;
+    return scope.Close(ThrowException(Exception::Error(message)));
   }
 
   uv_work_t* req = new uv_work_t();
@@ -102,12 +102,7 @@ Handle<Value> Connection::Commit(const Arguments& args) {
 
   REQ_FUN_ARG(0, callback);
 
-  CommitBaton* baton;
-  try {
-    baton = new CommitBaton(connection, &callback);
-  } catch(NodeOracleException &ex) {
-    return scope.Close(ThrowException(Exception::Error(String::New(ex.getMessage().c_str()))));
-  }
+  CommitBaton* baton = new CommitBaton(connection, &callback);
 
   uv_work_t* req = new uv_work_t();
   req->data = baton;
@@ -124,12 +119,7 @@ Handle<Value> Connection::Rollback(const Arguments& args) {
 
   REQ_FUN_ARG(0, callback);
 
-  RollbackBaton* baton;
-  try {
-    baton = new RollbackBaton(connection, &callback);
-  } catch(NodeOracleException &ex) {
-    return scope.Close(ThrowException(Exception::Error(String::New(ex.getMessage().c_str()))));
-  }
+  RollbackBaton* baton = new RollbackBaton(connection, &callback);
 
   uv_work_t* req = new uv_work_t();
   req->data = baton;
@@ -484,8 +474,6 @@ void Connection::EIO_Execute(uv_work_t* req) {
     }
   } catch(oracle::occi::SQLException &ex) {
     baton->error = new string(ex.getMessage());
-  } catch(NodeOracleException &ex) {
-    baton->error = new string(ex.getMessage());
   } catch (const exception& ex) {
     baton->error = new string(ex.what());
   } catch (...) {
@@ -681,11 +669,6 @@ void Connection::EIO_AfterExecute(uv_work_t* req, int status) {
     Handle<Value> argv[2];
     handleResult(baton, argv);
     node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
-  } catch(NodeOracleException &ex) {
-    Handle<Value> argv[2];
-    argv[0] = Exception::Error(String::New(ex.getMessage().c_str()));
-    argv[1] = Undefined();
-    node::MakeCallback(Context::GetCurrent()->Global(), baton->callback, 2, argv);
   } catch(const exception &ex) {
     Handle<Value> argv[2];
     argv[0] = Exception::Error(String::New(ex.what()));
@@ -810,11 +793,11 @@ Handle<Value> Connection::ExecuteSync(const Arguments& args) {
 
   String::Utf8Value sqlVal(sql);
 
-  ExecuteBaton* baton;
-  try {
-    baton = new ExecuteBaton(connection, *sqlVal, &values, NULL);
-  } catch(NodeOracleException &ex) {
-    return ThrowException(Exception::Error(String::New(ex.getMessage().c_str())));
+  ExecuteBaton* baton = new ExecuteBaton(connection, *sqlVal, &values, NULL);
+  if (baton->error) {
+    Local<String> message = String::New(baton->error->c_str());
+    delete baton;
+    return scope.Close(ThrowException(Exception::Error(message)));
   }
 
   uv_work_t* req = new uv_work_t();

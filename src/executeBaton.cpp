@@ -1,7 +1,6 @@
 
 #include "executeBaton.h"
 #include "outParam.h"
-#include "nodeOracleException.h"
 #include "connection.h"
 #include <iostream>
 using namespace std;

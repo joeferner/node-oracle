@@ -10,7 +10,6 @@
 #include <occi.h>
 #include <oro.h>
 #include "utils.h"
-#include "nodeOracleException.h"
 #include "executeBaton.h"
 
 using namespace node;

@@ -3,7 +3,6 @@
 #define _nodeOracleException_h_
 
 #include <string>
-
 class NodeOracleException {
 public:
   NodeOracleException(std::string message) : m_message(message) {
