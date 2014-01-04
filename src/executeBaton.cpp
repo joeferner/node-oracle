@@ -12,8 +12,8 @@ ExecuteBaton::ExecuteBaton(Connection* connection, const char* sql, v8::Local<v8
     this->callback = Persistent<Function>::New(*callback);
   }
   this->outputs = new std::vector<output_t*>();
-  CopyValuesToBaton(this, values);
   this->error = NULL;
+  CopyValuesToBaton(this, values);
 }
 
 ExecuteBaton::~ExecuteBaton() {
