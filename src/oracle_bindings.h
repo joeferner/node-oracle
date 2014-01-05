@@ -16,9 +16,9 @@ using namespace v8;
 class OracleClient : public ObjectWrap {
 public:
   static void Init(Handle<Object> target);
-  static uni::FunctionRetType New(const uni::FunctionArgs& args);
-  static uni::FunctionRetType Connect(const uni::FunctionArgs& args);
-  static uni::FunctionRetType ConnectSync(const uni::FunctionArgs& args);
+  static uni::CallbackType New(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType Connect(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType ConnectSync(const uni::FunctionCallbackInfo& args);
   static void EIO_Connect(uv_work_t* req);
   static void EIO_AfterConnect(uv_work_t* req, int status);
 

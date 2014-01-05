@@ -96,7 +96,7 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
     // date
     else if(val->IsDate()) {
       value->type = VALUE_TYPE_TIMESTAMP;
-      value->value = V8DateToOcciDate(baton->connection->getEnvironment(), DATE_CAST(val));
+      value->value = V8DateToOcciDate(baton->connection->getEnvironment(), uni::DateCast(val));
       baton->values.push_back(value);
     }
 

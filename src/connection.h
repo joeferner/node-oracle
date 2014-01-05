@@ -16,19 +16,18 @@
 using namespace node;
 using namespace v8;
 
+// borrowed uni compatibility templates from https://github.com/laverdet/node-fibers/blob/master/src/fibers.cc#L24-124
 // Handle legacy V8 API
 #include <uv.h>
 #include <node_object_wrap.h>
 namespace uni {
 #if NODE_MODULE_VERSION >= 0x000D
-  typedef void FunctionRetType;
-  typedef v8::FunctionCallbackInfo<v8::Value> FunctionArgs;
+  typedef void CallbackType;
+  typedef v8::FunctionCallbackInfo<v8::Value> FunctionCallbackInfo;
   typedef v8::Local<Value> BufferType;
-# define SCOPE_RETURN(scope, args, res) { args.GetReturnValue().Set(res); return; }
-# define THROW(x, m) { ThrowException(x(String::New(m))); return; }
-# define HANDLE_SCOPE(scope) HandleScope scope(Isolate::GetCurrent()) 
-# define BUFFER_TO_HANDLE(ARG) (ARG)
-# define DATE_CAST(d) Local<Date>::Cast(d)
+# define UNI_RETURN(scope, args, res) { args.GetReturnValue().Set(res); return; }
+# define UNI_THROW(ex) { ThrowException(ex); return; }
+# define UNI_SCOPE(scope) HandleScope scope(Isolate::GetCurrent()) 
   template <class T>
   void Reset(Persistent<T>& persistent, Handle<T> handle) {
     persistent.Reset(Isolate::GetCurrent(), handle);
@@ -37,15 +36,19 @@ namespace uni {
   Handle<T> Deref(Persistent<T>& handle) {
     return Handle<T>::New(Isolate::GetCurrent(), handle);
   }
+  inline Handle<Value> BufferToHandle(BufferType buf) {
+    return buf;
+  }
+  inline Local<Date> DateCast(Local<Value> date) {
+    return Local<Date>::Cast(date);
+  }
 #else
-  typedef Handle<Value> FunctionRetType;
-  typedef Arguments FunctionArgs;
+  typedef Handle<Value> CallbackType;
+  typedef Arguments FunctionCallbackInfo;
   typedef node::Buffer* BufferType;
-# define SCOPE_RETURN(scope, args, res) return scope.Close(res)
-# define THROW(x, m) return ThrowException(x(String::New(m)))
-# define HANDLE_SCOPE(scope) HandleScope scope
-# define BUFFER_TO_HANDLE(ARG) (ARG)->handle_
-# define DATE_CAST(d) Date::Cast(*(d))
+# define UNI_RETURN(scope, args, res) return scope.Close(res)
+# define UNI_THROW(ex) return ThrowException(ex)
+# define UNI_SCOPE(scope) HandleScope scope
   template <class T>
   void Reset(Persistent<T>& persistent, Handle<T> handle) {
     persistent = Persistent<T>::New(handle);
@@ -54,21 +57,27 @@ namespace uni {
   Handle<T> Deref(Persistent<T>& handle) {
     return Local<T>::New(handle);
   }
+  inline Handle<Value> BufferToHandle(BufferType buf) {
+    return buf->handle_;
+  }
+  inline Local<Date> DateCast(Local<Value> date) {
+    return Date::Cast(*date);
+  }
 #endif
 }
 
 class Connection : public ObjectWrap {
 public:
   static void Init(Handle<Object> target);
-  static uni::FunctionRetType New(const uni::FunctionArgs& args);
-  static uni::FunctionRetType Execute(const uni::FunctionArgs& args);
-  static uni::FunctionRetType ExecuteSync(const uni::FunctionArgs& args);
-  static uni::FunctionRetType Close(const uni::FunctionArgs& args);
-  static uni::FunctionRetType IsConnected(const uni::FunctionArgs& args);
-  static uni::FunctionRetType Commit(const uni::FunctionArgs& args);
-  static uni::FunctionRetType Rollback(const uni::FunctionArgs& args);
-  static uni::FunctionRetType SetAutoCommit(const uni::FunctionArgs& args);
-  static uni::FunctionRetType SetPrefetchRowCount(const uni::FunctionArgs& args);
+  static uni::CallbackType New(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType Execute(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType ExecuteSync(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType Close(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType IsConnected(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType Commit(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType Rollback(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType SetAutoCommit(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType SetPrefetchRowCount(const uni::FunctionCallbackInfo& args);
   static Persistent<FunctionTemplate> constructorTemplate;
   static void EIO_Execute(uv_work_t* req);
   static void EIO_AfterExecute(uv_work_t* req, int status);

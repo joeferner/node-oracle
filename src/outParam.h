@@ -27,7 +27,7 @@ struct inout_t {
 class OutParam : public ObjectWrap {
 public:
   static void Init(Handle<Object> target);
-  static uni::FunctionRetType New(const uni::FunctionArgs& args);
+  static uni::CallbackType New(const uni::FunctionCallbackInfo& args);
   static Persistent<FunctionTemplate> constructorTemplate;
   int _type;
   int _size;

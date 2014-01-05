@@ -13,7 +13,7 @@ Persistent<FunctionTemplate> OutParam::constructorTemplate;
  * }
  */
 void OutParam::Init(Handle<Object> target) {
-  HANDLE_SCOPE(scope);
+  UNI_SCOPE(scope);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   uni::Reset(constructorTemplate, t);
@@ -22,8 +22,8 @@ void OutParam::Init(Handle<Object> target) {
   target->Set(String::NewSymbol("OutParam"), uni::Deref(constructorTemplate)->GetFunction());
 }
 
-uni::FunctionRetType OutParam::New(const uni::FunctionArgs& args) {
-  HANDLE_SCOPE(scope);
+uni::CallbackType OutParam::New(const uni::FunctionCallbackInfo& args) {
+  UNI_SCOPE(scope);
   OutParam *outParam = new OutParam();
 
   if(args.Length() >=1 ) {
@@ -61,12 +61,12 @@ uni::FunctionRetType OutParam::New(const uni::FunctionArgs& args) {
         break;
       }
       default:
-        SCOPE_RETURN(scope, args, ThrowException(Exception::Error(String::New("Unhandled OutPram type!"))));
+        UNI_THROW(Exception::Error(String::New("Unhandled OutPram type!")));
       }
     }
   }
   outParam->Wrap(args.This());
-  SCOPE_RETURN(scope, args, args.This());
+  UNI_RETURN(scope, args, args.This());
 }
 
 OutParam::OutParam() {
