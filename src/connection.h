@@ -10,7 +10,6 @@
 #include <occi.h>
 #include <oro.h>
 #include "utils.h"
-#include "nodeOracleException.h"
 #include "executeBaton.h"
 
 using namespace node;
@@ -44,11 +43,11 @@ public:
   oracle::occi::Environment* getEnvironment() { return m_environment; }
 
 private:
-  static int SetValuesOnStatement(oracle::occi::Statement* stmt, std::vector<value_t*> &values);
-  static void CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns);
-  static row_t* CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs, std::vector<column_t*> &columns);
-  static Local<Array> CreateV8ArrayFromRows(std::vector<column_t*> columns, std::vector<row_t*>* rows);
-  static Local<Object> CreateV8ObjectFromRow(std::vector<column_t*> columns, row_t* currentRow);
+  static int SetValuesOnStatement(oracle::occi::Statement* stmt, ExecuteBaton* baton);
+  static void CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, ExecuteBaton* baton, std::vector<column_t*> &columns);
+  static row_t* CreateRowFromCurrentResultSetRow(oracle::occi::ResultSet* rs, ExecuteBaton* baton, std::vector<column_t*> &columns);
+  static Local<Array> CreateV8ArrayFromRows(ExecuteBaton* baton, std::vector<column_t*> columns, std::vector<row_t*>* rows);
+  static Local<Object> CreateV8ObjectFromRow(ExecuteBaton* baton, std::vector<column_t*> columns, row_t* currentRow);
   static void handleResult(ExecuteBaton* baton, Handle<Value> (&argv)[2]);
 
   oracle::occi::Connection* m_connection;

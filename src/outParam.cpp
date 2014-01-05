@@ -1,6 +1,5 @@
 
 #include "outParam.h"
-#include "nodeOracleException.h"
 #include <iostream>
 using namespace std;
 
@@ -62,7 +61,7 @@ Handle<Value> OutParam::New(const Arguments& args) {
         break;
       }
       default:
-        throw NodeOracleException("Unhandled OutPram type!");
+        return scope.Close(ThrowException(Exception::Error(String::New("Unhandled OutPram type!"))));
       }
     }
   }
