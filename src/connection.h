@@ -4,6 +4,7 @@
 
 #include <v8.h>
 #include <node.h>
+#include <node_buffer.h>
 #ifndef WIN32
   #include <unistd.h>
 #endif
@@ -15,18 +16,68 @@
 using namespace node;
 using namespace v8;
 
-class Connection : ObjectWrap {
+// borrowed uni compatibility templates from https://github.com/laverdet/node-fibers/blob/master/src/fibers.cc#L24-124
+// Handle legacy V8 API
+#include <uv.h>
+#include <node_object_wrap.h>
+namespace uni {
+#if NODE_MODULE_VERSION >= 0x000D
+  typedef void CallbackType;
+  typedef v8::FunctionCallbackInfo<v8::Value> FunctionCallbackInfo;
+  typedef v8::Local<Value> BufferType;
+# define UNI_RETURN(scope, args, res) { args.GetReturnValue().Set(res); return; }
+# define UNI_THROW(ex) { ThrowException(ex); return; }
+# define UNI_SCOPE(scope) HandleScope scope(Isolate::GetCurrent()) 
+  template <class T>
+  void Reset(Persistent<T>& persistent, Handle<T> handle) {
+    persistent.Reset(Isolate::GetCurrent(), handle);
+  }
+  template <class T>
+  Handle<T> Deref(Persistent<T>& handle) {
+    return Handle<T>::New(Isolate::GetCurrent(), handle);
+  }
+  inline Handle<Value> BufferToHandle(BufferType buf) {
+    return buf;
+  }
+  inline Local<Date> DateCast(Local<Value> date) {
+    return Local<Date>::Cast(date);
+  }
+#else
+  typedef Handle<Value> CallbackType;
+  typedef Arguments FunctionCallbackInfo;
+  typedef node::Buffer* BufferType;
+# define UNI_RETURN(scope, args, res) return scope.Close(res)
+# define UNI_THROW(ex) return ThrowException(ex)
+# define UNI_SCOPE(scope) HandleScope scope
+  template <class T>
+  void Reset(Persistent<T>& persistent, Handle<T> handle) {
+    persistent = Persistent<T>::New(handle);
+  }
+  template <class T>
+  Handle<T> Deref(Persistent<T>& handle) {
+    return Local<T>::New(handle);
+  }
+  inline Handle<Value> BufferToHandle(BufferType buf) {
+    return buf->handle_;
+  }
+  inline Local<Date> DateCast(Local<Value> date) {
+    return Date::Cast(*date);
+  }
+#endif
+}
+
+class Connection : public ObjectWrap {
 public:
   static void Init(Handle<Object> target);
-  static Handle<Value> New(const Arguments& args);
-  static Handle<Value> Execute(const Arguments& args);
-  static Handle<Value> ExecuteSync(const Arguments& args);
-  static Handle<Value> Close(const Arguments& args);
-  static Handle<Value> IsConnected(const Arguments& args);
-  static Handle<Value> Commit(const Arguments& args);
-  static Handle<Value> Rollback(const Arguments& args);
-  static Handle<Value> SetAutoCommit(const Arguments& args);
-  static Handle<Value> SetPrefetchRowCount(const Arguments& args);
+  static uni::CallbackType New(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType Execute(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType ExecuteSync(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType Close(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType IsConnected(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType Commit(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType Rollback(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType SetAutoCommit(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType SetPrefetchRowCount(const uni::FunctionCallbackInfo& args);
   static Persistent<FunctionTemplate> constructorTemplate;
   static void EIO_Execute(uv_work_t* req);
   static void EIO_AfterExecute(uv_work_t* req, int status);

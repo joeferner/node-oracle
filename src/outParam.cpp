@@ -1,4 +1,4 @@
-
+#include "connection.h" // to get compat macros
 #include "outParam.h"
 #include <iostream>
 using namespace std;
@@ -13,17 +13,17 @@ Persistent<FunctionTemplate> OutParam::constructorTemplate;
  * }
  */
 void OutParam::Init(Handle<Object> target) {
-  HandleScope scope;
+  UNI_SCOPE(scope);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
-  constructorTemplate = Persistent<FunctionTemplate>::New(t);
-  constructorTemplate->InstanceTemplate()->SetInternalFieldCount(1);
-  constructorTemplate->SetClassName(String::NewSymbol("OutParam"));
-  target->Set(String::NewSymbol("OutParam"), constructorTemplate->GetFunction());
+  uni::Reset(constructorTemplate, t);
+  uni::Deref(constructorTemplate)->InstanceTemplate()->SetInternalFieldCount(1);
+  uni::Deref(constructorTemplate)->SetClassName(String::NewSymbol("OutParam"));
+  target->Set(String::NewSymbol("OutParam"), uni::Deref(constructorTemplate)->GetFunction());
 }
 
-Handle<Value> OutParam::New(const Arguments& args) {
-  HandleScope scope;
+uni::CallbackType OutParam::New(const uni::FunctionCallbackInfo& args) {
+  UNI_SCOPE(scope);
   OutParam *outParam = new OutParam();
 
   if(args.Length() >=1 ) {
@@ -61,12 +61,12 @@ Handle<Value> OutParam::New(const Arguments& args) {
         break;
       }
       default:
-        return scope.Close(ThrowException(Exception::Error(String::New("Unhandled OutPram type!"))));
+        UNI_THROW(Exception::Error(String::New("Unhandled OutPram type!")));
       }
     }
   }
   outParam->Wrap(args.This());
-  return args.This();
+  UNI_RETURN(scope, args, args.This());
 }
 
 OutParam::OutParam() {

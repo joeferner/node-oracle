@@ -1,7 +1,7 @@
 
 #include "executeBaton.h"
-#include "outParam.h"
 #include "connection.h"
+#include "outParam.h"
 #include <iostream>
 using namespace std;
 
@@ -9,7 +9,7 @@ ExecuteBaton::ExecuteBaton(Connection* connection, const char* sql, v8::Local<v8
   this->connection = connection;
   this->sql = sql;
   if(callback!=NULL) {
-    this->callback = Persistent<Function>::New(*callback);
+    uni::Reset(this->callback, *callback);
   }
   this->outputs = new std::vector<output_t*>();
   this->error = NULL;
@@ -96,7 +96,7 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
     // date
     else if(val->IsDate()) {
       value->type = VALUE_TYPE_TIMESTAMP;
-      value->value = V8DateToOcciDate(baton->connection->getEnvironment(), v8::Date::Cast(*val));
+      value->value = V8DateToOcciDate(baton->connection->getEnvironment(), uni::DateCast(val));
       baton->values.push_back(value);
     }
 
@@ -109,11 +109,12 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
     }
 
     // output
-    else if(val->IsObject() && val->ToObject()->FindInstanceInPrototypeChain(OutParam::constructorTemplate) != v8::Null()) {
+    else if(val->IsObject() && val->ToObject()->FindInstanceInPrototypeChain(uni::Deref(OutParam::constructorTemplate)) != v8::Null()) {
       OutParam* op = node::ObjectWrap::Unwrap<OutParam>(val->ToObject());
 
       // [rfeng] The OutParam object will be destructed. We need to create a new copy.
-      OutParam* p = new OutParam(*op);
+      // [bjouhier] new fails with weird error message - fix this later if we really need to copy (do we?)
+      OutParam* p = op; //new OutParam(*op);
       value->type = VALUE_TYPE_OUTPUT;
       value->value = p; 
       baton->values.push_back(value);
@@ -124,7 +125,6 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
       output->index = i + 1;
       baton->outputs->push_back(output);
     }
-
     // unhandled type
     else {
         //XXX leaks new value on error

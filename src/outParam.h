@@ -24,10 +24,10 @@ struct inout_t {
   oracle::occi::Number numberVal;
 };
 
-class OutParam : ObjectWrap {
+class OutParam : public ObjectWrap {
 public:
   static void Init(Handle<Object> target);
-  static Handle<Value> New(const Arguments& args);
+  static uni::CallbackType New(const uni::FunctionCallbackInfo& args);
   static Persistent<FunctionTemplate> constructorTemplate;
   int _type;
   int _size;
