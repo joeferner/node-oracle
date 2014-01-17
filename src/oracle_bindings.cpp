@@ -1,6 +1,7 @@
 
 #include "connection.h"
 #include "oracle_bindings.h"
+#include "reader.h"
 #include "outParam.h"
 
 Persistent<FunctionTemplate> OracleClient::s_ct;
@@ -185,6 +186,7 @@ extern "C" {
   static void init(Handle<Object> target) {
     OracleClient::Init(target);
     Connection::Init(target);
+    Reader::Init(target);
     OutParam::Init(target);
   }
 

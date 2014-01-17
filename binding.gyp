@@ -5,6 +5,7 @@
       "sources": [ "src/connection.cpp", 
                    "src/oracle_bindings.cpp", 
                    "src/executeBaton.cpp",
+                   "src/reader.cpp",
                    "src/outParam.cpp" ],
       "conditions": [
         ["OS=='mac'", {
