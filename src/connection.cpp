@@ -723,16 +723,23 @@ failed:
           case OutParam::OCCICLOB:
             {
               output->clobVal.open(oracle::occi::OCCI_LOB_READONLY);
-              int lobLength = output->clobVal.length();
-              oracle::occi::Stream* instream = output->clobVal.getStream(1,0);
-              char *buffer = new char[lobLength];
-              memset(buffer, 0, lobLength);
-              instream->readBuffer(buffer, lobLength);
-              output->clobVal.closeStream(instream);
-              output->clobVal.close();
-              obj->Set(String::New(returnParam.c_str()), String::New(buffer, lobLength));
-              delete [] buffer;
-              break;
+      				oracle::occi::Stream* instream = output->clobVal.getStream(1,0);
+      				size_t chunkSize = output->clobVal.getChunkSize();
+      				char *buffer = new char[chunkSize];
+      				memset(buffer, 0, chunkSize);
+      				std::string clobVal;
+      				int numBytesRead = instream->readBuffer(buffer, chunkSize);
+      				int totalBytesRead = 0;
+      				while (numBytesRead != -1) {
+      					totalBytesRead += numBytesRead;
+      					clobVal.append(buffer);
+      					numBytesRead = instream->readBuffer(buffer, chunkSize);
+      				}
+      				output->clobVal.closeStream(instream);
+      				output->clobVal.close();
+      				obj->Set(String::New(returnParam.c_str()), String::New(clobVal.c_str(), totalBytesRead));				
+      				delete [] buffer;
+      				break;
             }
           case OutParam::OCCIBLOB:
             {
