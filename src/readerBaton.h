@@ -24,6 +24,7 @@ public:
     }
   }
 
+  v8::Persistent<v8::Function> nextRowsCallback;  
   oracle::occi::Statement* stmt;
   oracle::occi::ResultSet* rs;
   int count;
