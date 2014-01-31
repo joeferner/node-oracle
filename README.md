@@ -185,6 +185,42 @@ Javascript code:
 ...
 ```
 
+### Querying large tables
+
+To query large tables you should use a reader:
+
+* `connection.reader(sql, args)` creates a reader
+* `reader.nextRow(callback)` returns the next row through the callback
+* `reader.nextRows(count, callback)` returns the next `count` rows through the callback. `count` is optional and `nextRows` uses the prefetch row count when `count` is omitted.
+* `connection.setPrefetchRowCount(count)` configures the prefetch row count for the connection. Prefetching can have a dramatic impact on performance but uses more memory. 
+
+Example:
+
+```javascript
+connection.setPrefetchRowCount(50);
+var reader = connection.reader("SELECT * FROM auditlogs", []);
+
+function doRead(cb) {
+	reader.nextRow(function(err, row) {
+		if (err) return cb(err);
+		if (row) {
+			// do something with row
+			console.log("got " + JSON.stringify(row));
+			// recurse to read next record
+			return doRead(cb)
+		} else {
+			// we are done
+			return cb();
+		}
+	})
+}
+
+doRead(function(err) {
+	if (err) throw err; // or log it
+	console.log("all records processed");
+});
+```
+
 # Limitations/Caveats
 
 * Currently no native support for connection pooling (forthcoming; use generic-pool for now.)

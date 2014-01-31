@@ -3,6 +3,7 @@
 #include "executeBaton.h"
 #include "commitBaton.h"
 #include "rollbackBaton.h"
+#include "reader.h"
 #include "outParam.h"
 #include <vector>
 #include <node_version.h>
@@ -21,6 +22,7 @@ void Connection::Init(Handle<Object> target) {
 
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "execute", Execute);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "executeSync", ExecuteSync);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "reader", CreateReader);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "close", Close);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "isConnected", IsConnected);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "setAutoCommit", SetAutoCommit);
@@ -70,6 +72,24 @@ uni::CallbackType Connection::Execute(const uni::FunctionCallbackInfo& args) {
   connection->Ref();
 
   UNI_RETURN(scope, args, Undefined());
+}
+
+uni::CallbackType Connection::CreateReader(const uni::FunctionCallbackInfo& args) {
+  UNI_SCOPE(scope);
+  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
+
+  REQ_STRING_ARG(0, sql);
+  REQ_ARRAY_ARG(1, values);
+
+  String::Utf8Value sqlVal(sql);
+
+  ReaderBaton* baton = new ReaderBaton(connection, *sqlVal, &values);
+
+  Local<Object> readerHandle(uni::Deref(Reader::constructorTemplate)->GetFunction()->NewInstance());
+  Reader* reader = ObjectWrap::Unwrap<Reader>(readerHandle);
+  reader->setBaton(baton);
+
+  UNI_RETURN(scope, args, readerHandle);
 }
 
 uni::CallbackType Connection::Close(const uni::FunctionCallbackInfo& args) {
@@ -295,6 +315,15 @@ void Connection::CreateColumnsFromResultSet(oracle::occi::ResultSet* rs, Execute
         break;
       case oracle::occi::OCCI_TYPECODE_BLOB:
         col->type = VALUE_TYPE_BLOB;
+        break;
+      // The lines below are temporary mappings for RAW and ROWID types
+      // I need them to test because my test db has columns like this but this mapping will need to be reviewed
+      case 23: // see http://docs.oracle.com/cd/B14117_01/appdev.101/b10779/oci03typ.htm#421756
+        //printf("datatype 23 for column %s\n", col->name.c_str());
+        col->type = VALUE_TYPE_STRING;
+        break;
+      case 104: // rowid
+        col->type = VALUE_TYPE_STRING;
         break;
       default:
         ostringstream message;
