@@ -11,6 +11,7 @@ public:
     stmt = NULL;
     rs = NULL;
     done = false;
+    busy = false;
   }
   ~ReaderBaton() {
     ResetStatement();
@@ -33,6 +34,7 @@ public:
   oracle::occi::ResultSet* rs;
   int count;
   bool done;
+  bool busy;
 };
 
 #endif
