@@ -53,11 +53,11 @@ uni::CallbackType Reader::NextRows(const uni::FunctionCallbackInfo& args) {
     REQ_INT_ARG(0, count);
     REQ_FUN_ARG(1, callback);
     baton->count = count;
-    uni::Reset(baton->nextRowsCallback, callback);
+    uni::Reset(baton->callback, callback);
   } else {
     REQ_FUN_ARG(0, callback);
     baton->count = baton->connection->getPrefetchRowCount();
-    uni::Reset(baton->nextRowsCallback, callback);
+    uni::Reset(baton->callback, callback);
   }
   if (baton->count <= 0) baton->count = 1;
 
@@ -115,34 +115,25 @@ cleanup:
   ;
 }
 
-#if NODE_MODULE_VERSION >= 0x000D
-void ReaderWeakReferenceCallback(Isolate* isolate, v8::Persistent<v8::Function>* callback, void* dummy)
-{
-  callback->Dispose();
-}
-#else
-void ReaderWeakReferenceCallback(v8::Persistent<v8::Value> callback, void* dummy)
-{
-  (Persistent<Function>(Function::Cast(*callback))).Dispose();
-}
-#endif
-
 void Reader::EIO_AfterNextRows(uv_work_t* req, int status) {
   UNI_SCOPE(scope);
   ReaderBaton* baton = static_cast<ReaderBaton*>(req->data);
 
   baton->connection->Unref();
+  // transfer callback to local and dispose persistent handle
+  // must be done before invoking callback because callback may set another callback into baton->callback
+  Local<Function> cb = uni::Deref(baton->callback);
+  baton->callback.Dispose();
 
   try {
     Handle<Value> argv[2];
     Connection::handleResult(baton, argv);
-    node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->nextRowsCallback), 2, argv);
+    node::MakeCallback(Context::GetCurrent()->Global(), cb, 2, argv);
   } catch(const exception &ex) {
     Handle<Value> argv[2];
     argv[0] = Exception::Error(String::New(ex.what()));
     argv[1] = Undefined();
-    node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->nextRowsCallback), 2, argv);
+    node::MakeCallback(Context::GetCurrent()->Global(), cb, 2, argv);
   }
-  baton->nextRowsCallback.MakeWeak((void*)NULL, ReaderWeakReferenceCallback);
 }
 
