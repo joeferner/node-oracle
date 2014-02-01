@@ -133,5 +133,6 @@ void Reader::EIO_AfterNextRows(uv_work_t* req, int status) {
     // reader destructor will delete the baton and everything else.
     baton->ResetStatement();
   }
+  delete req;
 }
 
