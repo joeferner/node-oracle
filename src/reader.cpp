@@ -72,8 +72,8 @@ uni::CallbackType Reader::NextRows(const uni::FunctionCallbackInfo& args) {
 void Reader::EIO_NextRows(uv_work_t* req) {
   ReaderBaton* baton = static_cast<ReaderBaton*>(req->data);
 
-  baton->rows = NULL;
-  baton->error = NULL;
+  baton->rows = new vector<row_t*>();
+  if (baton->done) return;
 
   try {
     if(! baton->connection->getConnection()) {
@@ -96,13 +96,13 @@ void Reader::EIO_NextRows(uv_work_t* req) {
       Connection::CreateColumnsFromResultSet(baton->rs, baton, baton->columns);
       if (baton->error) goto cleanup;
     }
-    baton->rows = new vector<row_t*>();
 
     for (int i = 0; i < baton->count && baton->rs->next(); i++) {
       row_t* row = Connection::CreateRowFromCurrentResultSetRow(baton->rs, baton, baton->columns);
       if (baton->error) goto cleanup;
       baton->rows->push_back(row);
     }
+    if (baton->rows->size() < (size_t)baton->count) baton->done = true;
   } catch(oracle::occi::SQLException &ex) {
     baton->error = new string(ex.getMessage());
   } catch (const exception& ex) {
@@ -134,6 +134,13 @@ void Reader::EIO_AfterNextRows(uv_work_t* req, int status) {
     argv[0] = Exception::Error(String::New(ex.what()));
     argv[1] = Undefined();
     node::MakeCallback(Context::GetCurrent()->Global(), cb, 2, argv);
+  }
+  
+  baton->ResetRows();
+  if (baton->done || baton->error) {
+    // free occi resources so that we don't run out of cursors if gc is not fast enough
+    // reader destructor will delete the baton and everything else.
+    baton->ResetStatement();
   }
 }
 

@@ -61,6 +61,7 @@ class ExecuteBaton {
 public:
   ExecuteBaton(Connection* connection, const char* sql, v8::Local<v8::Array>* values, v8::Handle<v8::Function>* callback);
   ~ExecuteBaton();
+  void ResetRows();
 
   Connection *connection;
   v8::Persistent<v8::Function> callback;
