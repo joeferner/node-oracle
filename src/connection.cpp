@@ -22,7 +22,7 @@ void Connection::Init(Handle<Object> target) {
 
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "execute", Execute);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "executeSync", ExecuteSync);
-  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "reader", CreateReader);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "readerHandle", CreateReader);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "close", Close);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "isConnected", IsConnected);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "setAutoCommit", SetAutoCommit);
