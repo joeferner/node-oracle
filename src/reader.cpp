@@ -120,8 +120,9 @@ void Reader::EIO_AfterNextRows(uv_work_t* req, int status) {
   baton->connection->Unref();
   // transfer callback to local and dispose persistent handle
   // must be done before invoking callback because callback may set another callback into baton->callback
-  Local<Function> cb = uni::Deref(baton->callback);
+  Local<Function> cb = uni::HandleToLocal(uni::Deref(baton->callback));
   baton->callback.Dispose();
+  baton->callback.Clear();
 
   Handle<Value> argv[2];
   Connection::handleResult(baton, argv);

@@ -36,6 +36,10 @@ namespace uni {
   Handle<T> Deref(Persistent<T>& handle) {
     return Handle<T>::New(Isolate::GetCurrent(), handle);
   }
+  template <class T>
+  Local<T> HandleToLocal(Handle<T> handle) {
+    return handle;
+  }
   inline Handle<Value> BufferToHandle(BufferType buf) {
     return buf;
   }
@@ -55,6 +59,10 @@ namespace uni {
   }
   template <class T>
   Handle<T> Deref(Persistent<T>& handle) {
+    return Local<T>::New(handle);
+  }
+  template <class T>
+  Local<T> HandleToLocal(Handle<T> handle) {
     return Local<T>::New(handle);
   }
   inline Handle<Value> BufferToHandle(BufferType buf) {
