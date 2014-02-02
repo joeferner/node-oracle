@@ -148,6 +148,7 @@ void OracleClient::EIO_AfterConnect(uv_work_t* req, int status) {
   node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->callback), 2, argv);
 
   delete baton;
+  delete req;
 }
 
 uni::CallbackType OracleClient::ConnectSync(const uni::FunctionCallbackInfo& args) {

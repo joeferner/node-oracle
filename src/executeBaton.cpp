@@ -33,14 +33,7 @@ ExecuteBaton::~ExecuteBaton() {
     delete val;
   }
 
-  if(rows) {
-    for (std::vector<row_t*>::iterator iterator = rows->begin(), end = rows->end(); iterator != end; ++iterator) {
-      row_t* currentRow = *iterator;
-      delete currentRow;
-    }
-
-    delete rows;
-  }
+  ResetRows();
 
   if(outputs) {
     for (std::vector<output_t*>::iterator iterator = outputs->begin(), end = outputs->end(); iterator != end; ++iterator) {
@@ -51,6 +44,18 @@ ExecuteBaton::~ExecuteBaton() {
   }
 
   if(error) delete error;
+}
+
+void ExecuteBaton::ResetRows() {
+  if(rows) {
+    for (std::vector<row_t*>::iterator iterator = rows->begin(), end = rows->end(); iterator != end; ++iterator) {
+      row_t* currentRow = *iterator;
+      delete currentRow;
+    }
+
+    delete rows;
+    rows = NULL;
+  }
 }
 
 double CallDateMethod(v8::Local<v8::Date> date, const char* methodName) {

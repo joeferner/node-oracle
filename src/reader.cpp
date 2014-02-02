@@ -48,16 +48,20 @@ uni::CallbackType Reader::NextRows(const uni::FunctionCallbackInfo& args) {
     Local<String> message = String::New(baton->error->c_str());
     UNI_THROW(Exception::Error(message));
   }
+  if (baton->busy) {
+    UNI_THROW(Exception::Error(String::New("invalid state: reader is busy with another nextRows call")));
+  }
+  baton->busy = true;
 
   if (args.Length() > 1) {
     REQ_INT_ARG(0, count);
     REQ_FUN_ARG(1, callback);
     baton->count = count;
-    uni::Reset(baton->nextRowsCallback, callback);
+    uni::Reset(baton->callback, callback);
   } else {
     REQ_FUN_ARG(0, callback);
     baton->count = baton->connection->getPrefetchRowCount();
-    uni::Reset(baton->nextRowsCallback, callback);
+    uni::Reset(baton->callback, callback);
   }
   if (baton->count <= 0) baton->count = 1;
 
@@ -72,77 +76,64 @@ uni::CallbackType Reader::NextRows(const uni::FunctionCallbackInfo& args) {
 void Reader::EIO_NextRows(uv_work_t* req) {
   ReaderBaton* baton = static_cast<ReaderBaton*>(req->data);
 
-  baton->rows = NULL;
-  baton->error = NULL;
+  baton->rows = new vector<row_t*>();
+  if (baton->done) return;
 
-  try {
-    if(! baton->connection->getConnection()) {
-      baton->error = new std::string("Connection already closed");
-      return;
-    }
-    if (!baton->rs) {
+  if (!baton->connection->getConnection()) {
+    baton->error = new std::string("Connection already closed");
+    return;
+  }
+  if (!baton->rs) {
+    try {
       baton->stmt = baton->connection->getConnection()->createStatement(baton->sql);
       baton->stmt->setAutoCommit(baton->connection->getAutoCommit());
       baton->stmt->setPrefetchRowCount(baton->count);
       Connection::SetValuesOnStatement(baton->stmt, baton);
-      if (baton->error) goto cleanup;
+      if (baton->error) return;
 
       int status = baton->stmt->execute();
-      if(status != oracle::occi::Statement::RESULT_SET_AVAILABLE) {
+      if (status != oracle::occi::Statement::RESULT_SET_AVAILABLE) {
          baton->error = new std::string("Connection already closed");
         return;
       }     
       baton->rs = baton->stmt->getResultSet();
-      Connection::CreateColumnsFromResultSet(baton->rs, baton, baton->columns);
-      if (baton->error) goto cleanup;
+    } catch (oracle::occi::SQLException &ex) {
+      baton->error = new string(ex.getMessage());
+      return;
     }
-    baton->rows = new vector<row_t*>();
-
-    for (int i = 0; i < baton->count && baton->rs->next(); i++) {
-      row_t* row = Connection::CreateRowFromCurrentResultSetRow(baton->rs, baton, baton->columns);
-      if (baton->error) goto cleanup;
-      baton->rows->push_back(row);
-    }
-  } catch(oracle::occi::SQLException &ex) {
-    baton->error = new string(ex.getMessage());
-  } catch (const exception& ex) {
-    baton->error = new string(ex.what());
-  } catch (...) {
-    baton->error = new string("Unknown Error");
+    Connection::CreateColumnsFromResultSet(baton->rs, baton, baton->columns);
+    if (baton->error) return;
   }
-cleanup:
-  // nothing for now, cleanup happens in destructor
-  ;
+  for (int i = 0; i < baton->count && baton->rs->next(); i++) {
+    row_t* row = Connection::CreateRowFromCurrentResultSetRow(baton->rs, baton, baton->columns);
+    if (baton->error) return;
+    baton->rows->push_back(row);
+  }
+  if (baton->rows->size() < (size_t)baton->count) baton->done = true;
 }
-
-#if NODE_MODULE_VERSION >= 0x000D
-void ReaderWeakReferenceCallback(Isolate* isolate, v8::Persistent<v8::Function>* callback, void* dummy)
-{
-  callback->Dispose();
-}
-#else
-void ReaderWeakReferenceCallback(v8::Persistent<v8::Value> callback, void* dummy)
-{
-  (Persistent<Function>(Function::Cast(*callback))).Dispose();
-}
-#endif
 
 void Reader::EIO_AfterNextRows(uv_work_t* req, int status) {
   UNI_SCOPE(scope);
   ReaderBaton* baton = static_cast<ReaderBaton*>(req->data);
 
+  baton->busy = false;
   baton->connection->Unref();
+  // transfer callback to local and dispose persistent handle
+  // must be done before invoking callback because callback may set another callback into baton->callback
+  Local<Function> cb = uni::HandleToLocal(uni::Deref(baton->callback));
+  baton->callback.Dispose();
+  baton->callback.Clear();
 
-  try {
-    Handle<Value> argv[2];
-    Connection::handleResult(baton, argv);
-    node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->nextRowsCallback), 2, argv);
-  } catch(const exception &ex) {
-    Handle<Value> argv[2];
-    argv[0] = Exception::Error(String::New(ex.what()));
-    argv[1] = Undefined();
-    node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->nextRowsCallback), 2, argv);
+  Handle<Value> argv[2];
+  Connection::handleResult(baton, argv);
+  node::MakeCallback(Context::GetCurrent()->Global(), cb, 2, argv);
+  
+  baton->ResetRows();
+  if (baton->done || baton->error) {
+    // free occi resources so that we don't run out of cursors if gc is not fast enough
+    // reader destructor will delete the baton and everything else.
+    baton->ResetStatement();
   }
-  baton->nextRowsCallback.MakeWeak((void*)NULL, ReaderWeakReferenceCallback);
+  delete req;
 }
 

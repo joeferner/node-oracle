@@ -10,10 +10,16 @@ public:
   ReaderBaton(Connection* connection, const char* sql, v8::Local<v8::Array>* values) : ExecuteBaton(connection, sql, values, NULL) {
     stmt = NULL;
     rs = NULL;
+    done = false;
+    busy = false;
   }
   ~ReaderBaton() {
-	if(stmt && rs) {
-	  stmt->closeResultSet(rs);
+    ResetStatement();
+  }
+
+  void ResetStatement() {
+	  if(stmt && rs) {
+      stmt->closeResultSet(rs);
       rs = NULL;
     }
     if(stmt) {
@@ -24,10 +30,11 @@ public:
     }
   }
 
-  v8::Persistent<v8::Function> nextRowsCallback;  
   oracle::occi::Statement* stmt;
   oracle::occi::ResultSet* rs;
   int count;
+  bool done;
+  bool busy;
 };
 
 #endif
