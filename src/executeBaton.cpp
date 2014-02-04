@@ -27,8 +27,16 @@ ExecuteBaton::~ExecuteBaton() {
   for (std::vector<value_t*>::iterator iterator = values.begin(), end = values.end(); iterator != end; ++iterator) {
 
     value_t* val = *iterator;
-    if(val->type == VALUE_TYPE_STRING) {
-      delete (std::string*)val->value;
+    switch (val->type) {
+      case VALUE_TYPE_STRING:
+        delete (std::string*)val->value;
+        break;
+      case VALUE_TYPE_NUMBER:
+        delete (oracle::occi::Number*)val->value;
+        break;
+      case VALUE_TYPE_TIMESTAMP:
+        delete (oracle::occi::Timestamp*)val->value;
+        break;
     }
     delete val;
   }
