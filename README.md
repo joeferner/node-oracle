@@ -223,10 +223,10 @@ doRead(function(err) {
 
 ### Large inserts or updates
 
-To insert or update a large number of records you should use _prepared statements_ rather than individual execute calls on the connection object:
+To insert or update a large number of records you should use _prepared statements_ rather than individual `execute` calls on the connection object:
 
-* `statement = connection.prepare(sql)` creates a prepared statement.
-* `statement.execute(args, callback)` executes the prepared statement with the values in `args`. You can call this repeatedly on the same `statement`.
+* `statement = connection.prepare(sql)`: creates a prepared statement.
+* `statement.execute(args, callback)`: executes the prepared statement with the values in `args`. You can call this repeatedly on the same `statement`.
 
 Example:
 
