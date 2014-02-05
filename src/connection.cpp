@@ -3,6 +3,7 @@
 #include "executeBaton.h"
 #include "commitBaton.h"
 #include "rollbackBaton.h"
+#include "statement.h"
 #include "reader.h"
 #include "outParam.h"
 #include <vector>
@@ -23,6 +24,7 @@ void Connection::Init(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "execute", Execute);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "executeSync", ExecuteSync);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "readerHandle", CreateReader);
+  NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "prepare", Prepare);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "close", Close);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "isConnected", IsConnected);
   NODE_SET_PROTOTYPE_METHOD(uni::Deref(constructorTemplate), "setAutoCommit", SetAutoCommit);
@@ -72,6 +74,23 @@ uni::CallbackType Connection::Execute(const uni::FunctionCallbackInfo& args) {
   connection->Ref();
 
   UNI_RETURN(scope, args, Undefined());
+}
+
+uni::CallbackType Connection::Prepare(const uni::FunctionCallbackInfo& args) {
+  UNI_SCOPE(scope);
+  Connection* connection = ObjectWrap::Unwrap<Connection>(args.This());
+
+  REQ_STRING_ARG(0, sql);
+
+  String::Utf8Value sqlVal(sql);
+
+  StatementBaton* baton = new StatementBaton(connection, *sqlVal, NULL);
+
+  Local<Object> statementHandle(uni::Deref(Statement::constructorTemplate)->GetFunction()->NewInstance());
+  Statement* statement = ObjectWrap::Unwrap<Statement>(statementHandle);
+  statement->setBaton(baton);
+
+  UNI_RETURN(scope, args, statementHandle);
 }
 
 uni::CallbackType Connection::CreateReader(const uni::FunctionCallbackInfo& args) {
@@ -413,25 +432,34 @@ void Connection::EIO_AfterRollback(uv_work_t* req, int status) {
   delete req;
 }
 
-void Connection::EIO_Execute(uv_work_t* req) {
-  ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
-
+oracle::occi::Statement* Connection::CreateStatement(ExecuteBaton* baton) {
   baton->rows = NULL;
   baton->error = NULL;
 
-  oracle::occi::Statement* stmt = NULL;
-  oracle::occi::ResultSet* rs = NULL;
+  if (! baton->connection->m_connection) {
+    baton->error = new std::string("Connection already closed");
+    return NULL;
+  }
   try {
-    if(! baton->connection->m_connection) {
-      baton->error = new std::string("Connection already closed");
-      return;
-    }
-    stmt = baton->connection->m_connection->createStatement(baton->sql);
+    oracle::occi::Statement* stmt = baton->connection->m_connection->createStatement(baton->sql);
     stmt->setAutoCommit(baton->connection->m_autoCommit);
     if (baton->connection->m_prefetchRowCount > 0) stmt->setPrefetchRowCount(baton->connection->m_prefetchRowCount);
-    int outputParam = SetValuesOnStatement(stmt, baton);
-    if (baton->error) goto cleanup;
+    return stmt;
+  } catch(oracle::occi::SQLException &ex) {
+    baton->error = new string(ex.getMessage());
+    return NULL;
+  }
+}
 
+void Connection::ExecuteStatement(ExecuteBaton* baton, oracle::occi::Statement* stmt) {
+  oracle::occi::ResultSet* rs = NULL;
+
+  int outputParam = SetValuesOnStatement(stmt, baton);
+  if (baton->error) goto cleanup;
+
+  if (!baton->outputs) baton->outputs = new std::vector<output_t*>();
+
+  try {
     int status = stmt->execute();
     if(status == oracle::occi::Statement::UPDATE_COUNT_AVAILABLE) {
       baton->updateCount = stmt->getUpdateCount();
@@ -508,12 +536,22 @@ void Connection::EIO_Execute(uv_work_t* req) {
     baton->error = new string("Unknown Error");
   }
 cleanup:
-  if(stmt && rs) {
+  if (rs) {
     stmt->closeResultSet(rs);
     rs = NULL;
   }
-  if(stmt) {
-    if(baton->connection->m_connection) {
+}
+
+void Connection::EIO_Execute(uv_work_t* req) {
+  ExecuteBaton* baton = static_cast<ExecuteBaton*>(req->data);
+
+  oracle::occi::Statement* stmt = CreateStatement(baton);
+  if (baton->error) return;
+
+  ExecuteStatement(baton, stmt);
+
+  if (stmt) {
+    if (baton->connection->m_connection) {
       baton->connection->m_connection->terminateStatement(stmt);
     }
     stmt = NULL;

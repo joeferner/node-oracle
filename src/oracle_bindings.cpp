@@ -1,6 +1,7 @@
 
 #include "connection.h"
 #include "oracle_bindings.h"
+#include "statement.h"
 #include "reader.h"
 #include "outParam.h"
 
@@ -187,6 +188,7 @@ extern "C" {
   static void init(Handle<Object> target) {
     OracleClient::Init(target);
     Connection::Init(target);
+    Statement::Init(target);
     Reader::Init(target);
     OutParam::Init(target);
   }

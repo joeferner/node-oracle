@@ -77,11 +77,14 @@ namespace uni {
 class Connection : public ObjectWrap {
   friend class Reader;
   friend class ReaderBaton;
+  friend class Statement;
+  friend class StatementBaton;
 public:
   static void Init(Handle<Object> target);
   static uni::CallbackType New(const uni::FunctionCallbackInfo& args);
   static uni::CallbackType Execute(const uni::FunctionCallbackInfo& args);
   static uni::CallbackType ExecuteSync(const uni::FunctionCallbackInfo& args);
+  static uni::CallbackType Prepare(const uni::FunctionCallbackInfo& args);
   static uni::CallbackType CreateReader(const uni::FunctionCallbackInfo& args);
   static uni::CallbackType Close(const uni::FunctionCallbackInfo& args);
   static uni::CallbackType IsConnected(const uni::FunctionCallbackInfo& args);
@@ -105,6 +108,10 @@ public:
   oracle::occi::Environment* getEnvironment() { return m_environment; }
 
 protected:
+  // shared with Statement
+  static oracle::occi::Statement* CreateStatement(ExecuteBaton* baton);
+  static void ExecuteStatement(ExecuteBaton* baton, oracle::occi::Statement* stmt);
+
   // shared with Reader
   oracle::occi::Connection* getConnection() { return m_connection; }
   bool getAutoCommit() { return m_autoCommit; }

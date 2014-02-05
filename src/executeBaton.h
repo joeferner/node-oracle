@@ -61,7 +61,10 @@ class ExecuteBaton {
 public:
   ExecuteBaton(Connection* connection, const char* sql, v8::Local<v8::Array>* values, v8::Handle<v8::Function>* callback);
   ~ExecuteBaton();
+  void ResetValues();
   void ResetRows();
+  void ResetOutputs();
+  void ResetError();
 
   Connection *connection;
   v8::Persistent<v8::Function> callback;
@@ -73,7 +76,6 @@ public:
   std::string* error;
   int updateCount;
 
-private:
   static void CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* values);
 };
 

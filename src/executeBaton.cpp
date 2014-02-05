@@ -13,7 +13,8 @@ ExecuteBaton::ExecuteBaton(Connection* connection, const char* sql, v8::Local<v8
   }
   this->outputs = new std::vector<output_t*>();
   this->error = NULL;
-  CopyValuesToBaton(this, values);
+  if (values) CopyValuesToBaton(this, values);
+  this->rows = NULL;
 }
 
 ExecuteBaton::~ExecuteBaton() {
@@ -24,6 +25,13 @@ ExecuteBaton::~ExecuteBaton() {
     delete col;
   }
 
+  ResetValues();
+  ResetRows();
+  ResetOutputs();
+  ResetError();
+}
+
+void ExecuteBaton::ResetValues() {
   for (std::vector<value_t*>::iterator iterator = values.begin(), end = values.end(); iterator != end; ++iterator) {
 
     value_t* val = *iterator;
@@ -40,22 +48,11 @@ ExecuteBaton::~ExecuteBaton() {
     }
     delete val;
   }
-
-  ResetRows();
-
-  if(outputs) {
-    for (std::vector<output_t*>::iterator iterator = outputs->begin(), end = outputs->end(); iterator != end; ++iterator) {
-      output_t* o = *iterator;
-      delete o;
-    }
-    delete outputs;
-  }
-
-  if(error) delete error;
+  values.clear();
 }
 
 void ExecuteBaton::ResetRows() {
-  if(rows) {
+  if (rows) {
     for (std::vector<row_t*>::iterator iterator = rows->begin(), end = rows->end(); iterator != end; ++iterator) {
       row_t* currentRow = *iterator;
       delete currentRow;
@@ -63,6 +60,24 @@ void ExecuteBaton::ResetRows() {
 
     delete rows;
     rows = NULL;
+  }
+}
+
+void ExecuteBaton::ResetOutputs() {
+  if (outputs) {
+    for (std::vector<output_t*>::iterator iterator = outputs->begin(), end = outputs->end(); iterator != end; ++iterator) {
+      output_t* o = *iterator;
+      delete o;
+    }
+    delete outputs;
+    outputs = NULL;
+  }
+}
+
+void ExecuteBaton::ResetError() {
+  if (error) {
+    delete error;
+    error = NULL;
   }
 }
 
