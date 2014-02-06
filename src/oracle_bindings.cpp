@@ -127,6 +127,8 @@ void OracleClient::EIO_Connect(uv_work_t* req) {
     baton->connection = baton->environment->createConnection(baton->user, baton->password, connectionStr.str());
   } catch(oracle::occi::SQLException &ex) {
     baton->error = new std::string(ex.getMessage());
+  } catch (const std::exception& ex) {
+    baton->error = new std::string(ex.what());
   }
 }
 
