@@ -125,6 +125,7 @@ void OracleClient::EIO_Connect(uv_work_t* req) {
       connectionStr << "//" << baton->hostname << ":" << baton->port << "/" << baton->database;
     }
     baton->connection = baton->environment->createConnection(baton->user, baton->password, connectionStr.str());
+    baton->connection->setStmtCacheSize(100);
   } catch(oracle::occi::SQLException &ex) {
     baton->error = new std::string(ex.getMessage());
   } catch (const std::exception& ex) {
