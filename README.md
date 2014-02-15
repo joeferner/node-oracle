@@ -194,7 +194,7 @@ To query large tables you should use a _reader_:
 
 * `reader = connection.reader(sql, args)`: creates a reader
 * `reader.nextRow(callback)`: returns the next row through the callback
-* `reader.nextRows(count, callback)` returns the next `count` rows through the callback. `count` is optional and `nextRows` uses the prefetch row count when `count` is omitted.
+* `reader.nextRows(count, callback)` returns the next `count` rows through the callback. `count` is optional and `nextRows` uses the prefetch row count when `count` is omitted.  Also, you much check for `row.length` since the reader will continue returning empty arrays once it exceeds the end of the data set provided by the query.
 * `connection.setPrefetchRowCount(count)`: configures the prefetch row count for the connection. Prefetching can have a dramatic impact on performance but uses more memory. 
 
 Example:
@@ -258,6 +258,7 @@ doInsert(statement, users, function(err) {
 
 # Limitations/Caveats
 
+* Ensure you always close your connection at the end of use to avoid random false oracle errors.
 * Currently no native support for connection pooling (forthcoming; use generic-pool for now.)
 * Currently no support for column type "Timestamp With Timezone" (Issue #67)
 * While the Oracle TIMESTAMP type provides fractional seconds up to 9 digits (nanoseconds), this will be rounded
