@@ -408,6 +408,7 @@ void Connection::EIO_AfterCommit(uv_work_t* req, int status) {
 
   Handle<Value> argv[2];
   argv[0] = Undefined();
+  argv[1] = Undefined();
   node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->callback), 2, argv);
   delete baton;
   delete req;
@@ -427,6 +428,7 @@ void Connection::EIO_AfterRollback(uv_work_t* req, int status) {
 
   Handle<Value> argv[2];
   argv[0] = Undefined();
+  argv[1] = Undefined();
   node::MakeCallback(Context::GetCurrent()->Global(), uni::Deref(baton->callback), 2, argv);
   delete baton;
   delete req;
