@@ -22,6 +22,13 @@ struct inout_t {
   oracle::occi::Date dateVal;
   oracle::occi::Timestamp timestampVal;
   oracle::occi::Number numberVal;
+
+  // This will hold the info needed for binding vectors values
+  void* collectionValues;
+  ub4 collectionLength;
+  sb4 elementsSize; // The size of each element in the array
+  ub2* elementLength; //  An array that holds the actual length of each element in the array (in case of strings)
+  oracle::occi::Type elemetnsType;
 };
 
 class OutParam : public ObjectWrap {
@@ -47,6 +54,7 @@ public:
   static const int OCCITIMESTAMP = 7;
   static const int OCCINUMBER = 8;
   static const int OCCIBLOB = 9;
+  static const int OCCIVECTOR = 10;
 
 private:
 };
