@@ -136,6 +136,14 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
       baton->values.push_back(value);
     }
 
+	// array
+    else if (val->IsArray()) {
+      value->type = VALUE_TYPE_ARRAY;
+      Local<Array> arr = Local<Array>::Cast(val);
+	  GetVectorParam(baton, value, arr);
+	  baton->values.push_back(value);
+    }
+
     // output
     else if(val->IsObject() && val->ToObject()->FindInstanceInPrototypeChain(uni::Deref(OutParam::constructorTemplate)) != v8::Null()) {
       OutParam* op = node::ObjectWrap::Unwrap<OutParam>(val->ToObject());
@@ -161,6 +169,95 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
       baton->error = new std::string(message.str());
       return;
     }
+  }
+}
 
+void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Array> arr) {
+  // In case the array is empty just initialize the fields as we would need something in Connection::SetValuesOnStatement
+  if (arr->Length() < 1) {
+	value->value = new int[0];
+	value->collectionLength = 0;
+    value->elementsSize = 0;
+    value->elementLength = new ub2[0];
+	value->elemetnsType = oracle::occi::OCCIINT;
+	return;
+  }
+  
+  // Next we create the array buffer that will be used later as the value for the param (in Connection::SetValuesOnStatement)
+  // The array type will be derived from the type of the first element.
+  Local<Value> val = arr->Get(0);
+
+  // String array
+  if (val->IsString()) {
+    value->elemetnsType = oracle::occi::OCCI_SQLT_STR;
+
+    // Find the longest string, this is necessary in order to create a buffer later.
+    int longestString = 0;
+    for(unsigned int i = 0; i < arr->Length(); i++) {
+    Local<Value> currVal = arr->Get(i);
+    if (currVal->ToString()->Utf8Length() > longestString)
+        longestString = currVal->ToString()->Utf8Length();
+    }
+
+	// Add 1 for '\0'
+    ++longestString;
+
+	// Create a long char* that will hold the entire array, it is important to create a FIXED SIZE array,
+    // meaning all strings have the same allocated length.
+    char* strArr = new char[arr->Length() * longestString];
+    value->elementLength = new ub2[arr->Length()];
+
+    // loop thru the arr and copy the strings into the strArr
+    int bytesWritten = 0;
+    for(unsigned int i = 0; i < arr->Length(); i++) {
+      Local<Value> currVal = arr->Get(i);
+	  if(!currVal->IsString()) {
+        std::ostringstream message;
+        message << "Input array has object with invalid type at index " << i << ", all object must be of type 'string' which is the type of the first element";
+        baton->error = new std::string(message.str());
+		return;
+	  }
+            
+	  String::Utf8Value utfStr(currVal);
+									
+      // Copy this string onto the strArr (we put \0 in the beginning as this is what strcat expects).
+      strArr[bytesWritten] = '\0';
+      strncat(strArr + bytesWritten, *utfStr, longestString);
+      bytesWritten += longestString;
+									
+      // Set the length of this element, add +1 for the '\0'
+      value->elementLength[i] = utfStr.length() + 1;
+    }
+
+    value->value = strArr;
+    value->collectionLength = arr->Length();
+    value->elementsSize = longestString;
+  }
+
+  // Integer array.
+  else if (val->IsNumber()) {
+    // Allocate memory and copy the ints.
+    double* intArr = new double[arr->Length()];
+    for(unsigned int i = 0; i < arr->Length(); i++) {
+      Local<Value> currVal = arr->Get(i);
+      if(!currVal->IsNumber()) {
+        std::ostringstream message;
+        message << "Input array has object with invalid type at index " << i << ", all object must be of type 'number' which is the type of the first element";
+        baton->error = new std::string(message.str());
+		return;
+	  }
+
+	  intArr[i] = currVal->ToNumber()->Value();
+    }
+
+    value->value = intArr;
+    value->collectionLength = arr->Length();
+    value->elementsSize = sizeof(double);
+    value->elemetnsType = oracle::occi::OCCIFLOAT;
+  }
+
+  // Unsupported type
+  else {
+    baton->error = new std::string("The type of the first element in the input array is not supported");
   }
 }

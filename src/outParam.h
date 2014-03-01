@@ -57,6 +57,7 @@ public:
   static const int OCCIVECTOR = 10;
 
 private:
+  static uni::CallbackType GetVectorParam(Local<Object> opts, OutParam* outParam);
 };
 
 #endif

@@ -222,6 +222,10 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, ExecuteBaton
       case VALUE_TYPE_TIMESTAMP:
         stmt->setTimestamp(index, *((oracle::occi::Timestamp*)val->value));
         break;
+	  case VALUE_TYPE_ARRAY:
+        stmt->setDatabaseNCHARParam(index, true);
+        stmt->setDataBufferArray(index, val->value, val->elemetnsType, val->collectionLength, &val->collectionLength, val->elementsSize, val->elementLength, NULL, NULL);
+		break;
       case VALUE_TYPE_OUTPUT:
         outParam = static_cast<OutParam*>(val->value);
         // std::cout << "OutParam B: " << outParam << " "<< outParam->type() << " " << outParam->_inOut.hasInParam << std::endl;
@@ -278,6 +282,22 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, ExecuteBaton
             }
           case OutParam::OCCIBLOB:
             stmt->registerOutParam(index, oracle::occi::OCCIBLOB);
+            break;
+          case OutParam::OCCIVECTOR:
+            // OCCIVECTOR is supported only as an IN param.
+			if(!outParam->_inOut.hasInParam) {
+              ostringstream oss;
+              oss << "SetValuesOnStatement: Unknown OutParam type: " << outParamType;
+              baton->error = new std::string(oss.str());
+              return -2;
+            }
+						
+            //if (outParam->_inOut.collectionValues == NULL)
+              //throw NodeOracleException("OutParam::OCCIVECTOR has empty collection");
+
+            stmt->setDatabaseNCHARParam(index, true);
+            stmt->setDataBufferArray(index, outParam->_inOut.collectionValues, outParam->_inOut.elemetnsType, outParam->_inOut.collectionLength,
+                                     &outParam->_inOut.collectionLength, outParam->_inOut.elementsSize, outParam->_inOut.elementLength, NULL, NULL);
             break;
           default:
             {
@@ -507,6 +527,8 @@ void Connection::ExecuteStatement(ExecuteBaton* baton, oracle::occi::Statement* 
               break;
             case OutParam::OCCINUMBER:
               output->numberVal = stmt->getNumber(output->index);
+              break;
+			case OutParam::OCCIVECTOR:
               break;
             default:
               {
@@ -840,6 +862,10 @@ failed:
             break;
           case OutParam::OCCINUMBER:
             obj->Set(String::New(returnParam.c_str()), Number::New(output->numberVal));
+            break;
+          case OutParam::OCCIVECTOR:
+            //in vector
+            obj->Set(String::New(returnParam.c_str()), String::New("in OCCIVECTOR was here"));
             break;
           default:
             {
