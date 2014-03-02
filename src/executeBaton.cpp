@@ -45,6 +45,16 @@ void ExecuteBaton::ResetValues() {
       case VALUE_TYPE_TIMESTAMP:
         delete (oracle::occi::Timestamp*)val->value;
         break;
+	  case VALUE_TYPE_ARRAY:
+	    if (val->value != NULL && val->elemetnsType == oracle::occi::OCCI_SQLT_STR)
+		  delete (char*)val->value;
+	    else if (val->value != NULL && val->elemetnsType == oracle::occi::OCCI_SQLT_NUM)
+          delete (char*)val->value;
+		
+		if (val->elementLength != NULL)
+		  delete val->elementLength;
+
+		break;
     }
     delete val;
   }
@@ -236,8 +246,12 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Arr
 
   // Integer array.
   else if (val->IsNumber()) {
-    // Allocate memory and copy the ints.
-    double* intArr = new double[arr->Length()];
+	value->elemetnsType = oracle::occi::OCCI_SQLT_NUM;
+	
+	// Allocate memory for the numbers array, Number in Oracle is 21 bytes
+    unsigned char* numArr = new unsigned char[arr->Length() * 21];
+	value->elementLength = new ub2[arr->Length()];
+
     for(unsigned int i = 0; i < arr->Length(); i++) {
       Local<Value> currVal = arr->Get(i);
       if(!currVal->IsNumber()) {
@@ -247,13 +261,25 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Arr
 		return;
 	  }
 
-	  intArr[i] = currVal->ToNumber()->Value();
+	  // JS numbers can exceed oracle numbers, make sure this is not the case.
+	  double d = currVal->ToNumber()->Value();
+	  if (d > 9.99999999999999999999999999999999999999*std::pow(10, 125) || d < -9.99999999999999999999999999999999999999*std::pow(10, 125)) {
+        std::ostringstream message;
+        message << "Input array has number that is out of the range of Oracle numbers, check the number at index " << i;
+        baton->error = new std::string(message.str());
+		return;
+	  }
+	  
+	  // Convert the JS number into Oracle Number and get its bytes representation
+	  oracle::occi::Number n = d;
+      oracle::occi::Bytes b = n.toBytes();
+      value->elementLength[i] = b.length ();
+      b.getBytes(&numArr[i*21], b.length());
     }
 
-    value->value = intArr;
+    value->value = numArr;
     value->collectionLength = arr->Length();
-    value->elementsSize = sizeof(double);
-    value->elemetnsType = oracle::occi::OCCIFLOAT;
+    value->elementsSize = 21;
   }
 
   // Unsupported type
