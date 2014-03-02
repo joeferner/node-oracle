@@ -45,16 +45,16 @@ void ExecuteBaton::ResetValues() {
       case VALUE_TYPE_TIMESTAMP:
         delete (oracle::occi::Timestamp*)val->value;
         break;
-	  case VALUE_TYPE_ARRAY:
-	    if (val->value != NULL && val->elemetnsType == oracle::occi::OCCI_SQLT_STR)
-		  delete (char*)val->value;
-	    else if (val->value != NULL && val->elemetnsType == oracle::occi::OCCI_SQLT_NUM)
+      case VALUE_TYPE_ARRAY:
+        if (val->value != NULL && val->elemetnsType == oracle::occi::OCCI_SQLT_STR)
+          delete (char*)val->value;
+        else if (val->value != NULL && val->elemetnsType == oracle::occi::OCCI_SQLT_NUM)
           delete (char*)val->value;
 		
-		if (val->elementLength != NULL)
-		  delete val->elementLength;
+        if (val->elementLength != NULL)
+          delete val->elementLength;
 
-		break;
+        break;
     }
     delete val;
   }
@@ -146,12 +146,12 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
       baton->values.push_back(value);
     }
 
-	// array
+    // array
     else if (val->IsArray()) {
       value->type = VALUE_TYPE_ARRAY;
       Local<Array> arr = Local<Array>::Cast(val);
-	  GetVectorParam(baton, value, arr);
-	  baton->values.push_back(value);
+      GetVectorParam(baton, value, arr);
+      baton->values.push_back(value);
     }
 
     // output
@@ -185,12 +185,12 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
 void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Array> arr) {
   // In case the array is empty just initialize the fields as we would need something in Connection::SetValuesOnStatement
   if (arr->Length() < 1) {
-	value->value = new int[0];
-	value->collectionLength = 0;
+    value->value = new int[0];
+    value->collectionLength = 0;
     value->elementsSize = 0;
     value->elementLength = new ub2[0];
-	value->elemetnsType = oracle::occi::OCCIINT;
-	return;
+    value->elemetnsType = oracle::occi::OCCIINT;
+    return;
   }
   
   // Next we create the array buffer that will be used later as the value for the param (in Connection::SetValuesOnStatement)
@@ -206,13 +206,13 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Arr
     for(unsigned int i = 0; i < arr->Length(); i++) {
     Local<Value> currVal = arr->Get(i);
     if (currVal->ToString()->Utf8Length() > longestString)
-        longestString = currVal->ToString()->Utf8Length();
+      longestString = currVal->ToString()->Utf8Length();
     }
 
-	// Add 1 for '\0'
+    // Add 1 for '\0'
     ++longestString;
 
-	// Create a long char* that will hold the entire array, it is important to create a FIXED SIZE array,
+    // Create a long char* that will hold the entire array, it is important to create a FIXED SIZE array,
     // meaning all strings have the same allocated length.
     char* strArr = new char[arr->Length() * longestString];
     value->elementLength = new ub2[arr->Length()];
@@ -221,14 +221,14 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Arr
     int bytesWritten = 0;
     for(unsigned int i = 0; i < arr->Length(); i++) {
       Local<Value> currVal = arr->Get(i);
-	  if(!currVal->IsString()) {
+      if(!currVal->IsString()) {
         std::ostringstream message;
         message << "Input array has object with invalid type at index " << i << ", all object must be of type 'string' which is the type of the first element";
         baton->error = new std::string(message.str());
-		return;
-	  }
+        return;
+      }
             
-	  String::Utf8Value utfStr(currVal);
+      String::Utf8Value utfStr(currVal);
 									
       // Copy this string onto the strArr (we put \0 in the beginning as this is what strcat expects).
       strArr[bytesWritten] = '\0';
@@ -246,11 +246,11 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Arr
 
   // Integer array.
   else if (val->IsNumber()) {
-	value->elemetnsType = oracle::occi::OCCI_SQLT_NUM;
+    value->elemetnsType = oracle::occi::OCCI_SQLT_NUM;
 	
-	// Allocate memory for the numbers array, Number in Oracle is 21 bytes
+    // Allocate memory for the numbers array, Number in Oracle is 21 bytes
     unsigned char* numArr = new unsigned char[arr->Length() * 21];
-	value->elementLength = new ub2[arr->Length()];
+    value->elementLength = new ub2[arr->Length()];
 
     for(unsigned int i = 0; i < arr->Length(); i++) {
       Local<Value> currVal = arr->Get(i);
@@ -258,20 +258,20 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Arr
         std::ostringstream message;
         message << "Input array has object with invalid type at index " << i << ", all object must be of type 'number' which is the type of the first element";
         baton->error = new std::string(message.str());
-		return;
+        return;
 	  }
 
-	  // JS numbers can exceed oracle numbers, make sure this is not the case.
-	  double d = currVal->ToNumber()->Value();
-	  if (d > 9.99999999999999999999999999999999999999*std::pow(10, 125) || d < -9.99999999999999999999999999999999999999*std::pow(10, 125)) {
+      // JS numbers can exceed oracle numbers, make sure this is not the case.
+      double d = currVal->ToNumber()->Value();
+      if (d > 9.99999999999999999999999999999999999999*std::pow(10, 125) || d < -9.99999999999999999999999999999999999999*std::pow(10, 125)) {
         std::ostringstream message;
         message << "Input array has number that is out of the range of Oracle numbers, check the number at index " << i;
         baton->error = new std::string(message.str());
-		return;
-	  }
+        return;
+      }
 	  
-	  // Convert the JS number into Oracle Number and get its bytes representation
-	  oracle::occi::Number n = d;
+      // Convert the JS number into Oracle Number and get its bytes representation
+      oracle::occi::Number n = d;
       oracle::occi::Bytes b = n.toBytes();
       value->elementLength[i] = b.length ();
       b.getBytes(&numArr[i*21], b.length());

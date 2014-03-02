@@ -222,10 +222,10 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, ExecuteBaton
       case VALUE_TYPE_TIMESTAMP:
         stmt->setTimestamp(index, *((oracle::occi::Timestamp*)val->value));
         break;
-	  case VALUE_TYPE_ARRAY:
+      case VALUE_TYPE_ARRAY:
         stmt->setDatabaseNCHARParam(index, true);
         stmt->setDataBufferArray(index, val->value, val->elemetnsType, val->collectionLength, &val->collectionLength, val->elementsSize, val->elementLength, NULL, NULL);
-		break;
+        break;
       case VALUE_TYPE_OUTPUT:
         outParam = static_cast<OutParam*>(val->value);
         // std::cout << "OutParam B: " << outParam << " "<< outParam->type() << " " << outParam->_inOut.hasInParam << std::endl;
