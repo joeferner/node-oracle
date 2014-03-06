@@ -40,8 +40,11 @@ struct row_t {
 struct value_t {
   int type;
   void* value;
+};
 
+struct arrayParam_t {
   // This will hold the info needed for binding vectors values
+  void* value;  
   ub4 collectionLength;
   sb4 elementsSize; // The size of each element in the array
   ub2* elementLength; //  An array that holds the actual length of each element in the array (in case of strings)
@@ -84,7 +87,7 @@ public:
   int updateCount;
 
   static void CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* values);
-  static void GetVectorParam(ExecuteBaton* baton, value_t *value, v8::Local<v8::Array> arr);
+  static void GetVectorParam(ExecuteBaton* baton, arrayParam_t *value, v8::Local<v8::Array> arr);
 };
 
 #endif

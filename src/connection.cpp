@@ -205,6 +205,7 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, ExecuteBaton
   uint32_t index = 1;
   int outputParam = -1;
   OutParam * outParam = NULL;
+  arrayParam_t* arrParam;
   for (vector<value_t*>::iterator iterator = values.begin(), end = values.end(); iterator != end; ++iterator, index++) {
     value_t* val = *iterator;
     int outParamType;
@@ -224,7 +225,8 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, ExecuteBaton
         break;
       case VALUE_TYPE_ARRAY:
         stmt->setDatabaseNCHARParam(index, true);
-        stmt->setDataBufferArray(index, val->value, val->elemetnsType, val->collectionLength, &val->collectionLength, val->elementsSize, val->elementLength, NULL, NULL);
+        arrParam = (arrayParam_t*)val->value;        
+        stmt->setDataBufferArray(index, arrParam->value, arrParam->elemetnsType, arrParam->collectionLength, &arrParam->collectionLength, arrParam->elementsSize, arrParam->elementLength, NULL, NULL);
         break;
       case VALUE_TYPE_OUTPUT:
         outParam = static_cast<OutParam*>(val->value);

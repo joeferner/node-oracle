@@ -46,14 +46,16 @@ void ExecuteBaton::ResetValues() {
         delete (oracle::occi::Timestamp*)val->value;
         break;
       case VALUE_TYPE_ARRAY:
-        if (val->value != NULL && val->elemetnsType == oracle::occi::OCCI_SQLT_STR)
-          delete (char*)val->value;
-        else if (val->value != NULL && val->elemetnsType == oracle::occi::OCCI_SQLT_NUM)
-          delete (char*)val->value;
+        arrayParam_t* arrParam = (arrayParam_t*)val->value;
+        if (arrParam->value != NULL && arrParam->elemetnsType == oracle::occi::OCCI_SQLT_STR)
+          delete (char*)arrParam->value;
+        else if (arrParam->value != NULL && arrParam->elemetnsType == oracle::occi::OCCI_SQLT_NUM)
+          delete (char*)arrParam->value;
 		
-        if (val->elementLength != NULL)
-          delete val->elementLength;
+        if (arrParam->elementLength != NULL)
+          delete arrParam->elementLength;
 
+        delete (arrayParam_t*)val->value;
         break;
     }
     delete val;
@@ -150,7 +152,8 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
     else if (val->IsArray()) {
       value->type = VALUE_TYPE_ARRAY;
       Local<Array> arr = Local<Array>::Cast(val);
-      GetVectorParam(baton, value, arr);
+      value->value = new arrayParam_t();
+      GetVectorParam(baton, (arrayParam_t*)value->value, arr);
       baton->values.push_back(value);
     }
 
@@ -182,14 +185,14 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
   }
 }
 
-void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Array> arr) {
+void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, arrayParam_t* arrParam, Local<Array> arr) {
   // In case the array is empty just initialize the fields as we would need something in Connection::SetValuesOnStatement
   if (arr->Length() < 1) {
-    value->value = new int[0];
-    value->collectionLength = 0;
-    value->elementsSize = 0;
-    value->elementLength = new ub2[0];
-    value->elemetnsType = oracle::occi::OCCIINT;
+    arrParam->value = new int[0];
+    arrParam->collectionLength = 0;
+    arrParam->elementsSize = 0;
+    arrParam->elementLength = new ub2[0];
+    arrParam->elemetnsType = oracle::occi::OCCIINT;
     return;
   }
   
@@ -199,7 +202,7 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Arr
 
   // String array
   if (val->IsString()) {
-    value->elemetnsType = oracle::occi::OCCI_SQLT_STR;
+    arrParam->elemetnsType = oracle::occi::OCCI_SQLT_STR;
 
     // Find the longest string, this is necessary in order to create a buffer later.
     int longestString = 0;
@@ -215,7 +218,7 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Arr
     // Create a long char* that will hold the entire array, it is important to create a FIXED SIZE array,
     // meaning all strings have the same allocated length.
     char* strArr = new char[arr->Length() * longestString];
-    value->elementLength = new ub2[arr->Length()];
+    arrParam->elementLength = new ub2[arr->Length()];
 
     // loop thru the arr and copy the strings into the strArr
     int bytesWritten = 0;
@@ -236,21 +239,21 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Arr
       bytesWritten += longestString;
 									
       // Set the length of this element, add +1 for the '\0'
-      value->elementLength[i] = utfStr.length() + 1;
+      arrParam->elementLength[i] = utfStr.length() + 1;
     }
 
-    value->value = strArr;
-    value->collectionLength = arr->Length();
-    value->elementsSize = longestString;
+    arrParam->value = strArr;
+    arrParam->collectionLength = arr->Length();
+    arrParam->elementsSize = longestString;
   }
 
   // Integer array.
   else if (val->IsNumber()) {
-    value->elemetnsType = oracle::occi::OCCI_SQLT_NUM;
+    arrParam->elemetnsType = oracle::occi::OCCI_SQLT_NUM;
 	
     // Allocate memory for the numbers array, Number in Oracle is 21 bytes
     unsigned char* numArr = new unsigned char[arr->Length() * 21];
-    value->elementLength = new ub2[arr->Length()];
+    arrParam->elementLength = new ub2[arr->Length()];
 
     for(unsigned int i = 0; i < arr->Length(); i++) {
       Local<Value> currVal = arr->Get(i);
@@ -273,13 +276,13 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, value_t *value, Local<Arr
       // Convert the JS number into Oracle Number and get its bytes representation
       oracle::occi::Number n = d;
       oracle::occi::Bytes b = n.toBytes();
-      value->elementLength[i] = b.length ();
+      arrParam->elementLength[i] = b.length ();
       b.getBytes(&numArr[i*21], b.length());
     }
 
-    value->value = numArr;
-    value->collectionLength = arr->Length();
-    value->elementsSize = 21;
+    arrParam->value = numArr;
+    arrParam->collectionLength = arr->Length();
+    arrParam->elementsSize = 21;
   }
 
   // Unsupported type
