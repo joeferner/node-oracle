@@ -226,7 +226,7 @@ int Connection::SetValuesOnStatement(oracle::occi::Statement* stmt, ExecuteBaton
       case VALUE_TYPE_ARRAY:
         stmt->setDatabaseNCHARParam(index, true);
         arrParam = (arrayParam_t*)val->value;        
-        stmt->setDataBufferArray(index, arrParam->value, arrParam->elemetnsType, arrParam->collectionLength, &arrParam->collectionLength, arrParam->elementsSize, arrParam->elementLength, NULL, NULL);
+        stmt->setDataBufferArray(index, arrParam->value, arrParam->elementsType, arrParam->collectionLength, &arrParam->collectionLength, arrParam->elementsSize, arrParam->elementLength, NULL, NULL);
         break;
       case VALUE_TYPE_OUTPUT:
         outParam = static_cast<OutParam*>(val->value);

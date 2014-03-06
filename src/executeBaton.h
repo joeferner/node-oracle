@@ -43,12 +43,12 @@ struct value_t {
 };
 
 struct arrayParam_t {
-  // This will hold the info needed for binding vectors values
+  // This will hold the info needed for binding array values
   void* value;  
   ub4 collectionLength;
   sb4 elementsSize; // The size of each element in the array
   ub2* elementLength; //  An array that holds the actual length of each element in the array (in case of strings)
-  oracle::occi::Type elemetnsType;
+  oracle::occi::Type elementsType;
 };
 
 struct output_t {

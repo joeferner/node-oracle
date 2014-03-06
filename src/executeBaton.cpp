@@ -47,9 +47,9 @@ void ExecuteBaton::ResetValues() {
         break;
       case VALUE_TYPE_ARRAY:
         arrayParam_t* arrParam = (arrayParam_t*)val->value;
-        if (arrParam->value != NULL && arrParam->elemetnsType == oracle::occi::OCCI_SQLT_STR)
+        if (arrParam->value != NULL && arrParam->elementsType == oracle::occi::OCCI_SQLT_STR)
           delete (char*)arrParam->value;
-        else if (arrParam->value != NULL && arrParam->elemetnsType == oracle::occi::OCCI_SQLT_NUM)
+        else if (arrParam->value != NULL && arrParam->elementsType == oracle::occi::OCCI_SQLT_NUM)
           delete (char*)arrParam->value;
 		
         if (arrParam->elementLength != NULL)
@@ -192,7 +192,7 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, arrayParam_t* arrParam, L
     arrParam->collectionLength = 0;
     arrParam->elementsSize = 0;
     arrParam->elementLength = new ub2[0];
-    arrParam->elemetnsType = oracle::occi::OCCIINT;
+    arrParam->elementsType = oracle::occi::OCCIINT;
     return;
   }
   
@@ -202,7 +202,7 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, arrayParam_t* arrParam, L
 
   // String array
   if (val->IsString()) {
-    arrParam->elemetnsType = oracle::occi::OCCI_SQLT_STR;
+    arrParam->elementsType = oracle::occi::OCCI_SQLT_STR;
 
     // Find the longest string, this is necessary in order to create a buffer later.
     int longestString = 0;
@@ -249,7 +249,7 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, arrayParam_t* arrParam, L
 
   // Integer array.
   else if (val->IsNumber()) {
-    arrParam->elemetnsType = oracle::occi::OCCI_SQLT_NUM;
+    arrParam->elementsType = oracle::occi::OCCI_SQLT_NUM;
 	
     // Allocate memory for the numbers array, Number in Oracle is 21 bytes
     unsigned char* numArr = new unsigned char[arr->Length() * 21];
