@@ -3,6 +3,8 @@
 #include "connection.h"
 #include "outParam.h"
 #include <iostream>
+#include <string.h>
+#include <cmath>
 using namespace std;
 
 ExecuteBaton::ExecuteBaton(Connection* connection, const char* sql, v8::Local<v8::Array>* values, v8::Handle<v8::Function>* callback) {
