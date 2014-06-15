@@ -56,7 +56,7 @@ ln -s libocci.so.11.1 libocci.so
 
 `libaio` library is required on Linux systems:
 
-* On Unbuntu/Debian
+* On Ubuntu/Debian
 
 ```
 sudo apt-get install libaio1
