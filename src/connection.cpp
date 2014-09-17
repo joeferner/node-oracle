@@ -674,7 +674,7 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, vector<colu
             int totalBytesRead = 0;
             while (numBytesRead != -1) {
               totalBytesRead += numBytesRead;
-              columnVal.append(buffer);
+              columnVal.append(buffer, numBytesRead);
               numBytesRead = instream->readBuffer(buffer, chunkSize);
             }
 
@@ -807,7 +807,7 @@ failed:
       				int totalBytesRead = 0;
       				while (numBytesRead != -1) {
       					totalBytesRead += numBytesRead;
-      					clobVal.append(buffer);
+      					clobVal.append(buffer, numBytesRead);
       					numBytesRead = instream->readBuffer(buffer, chunkSize);
       				}
       				output->clobVal.closeStream(instream);
