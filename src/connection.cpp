@@ -705,7 +705,6 @@ Local<Object> Connection::CreateV8ObjectFromRow(ExecuteBaton* baton, vector<colu
             v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
             obj->Set(String::New(col->name.c_str()), v8Buffer);
             delete v;
-            delete[] buffer;
             break;
           }
           break;
@@ -835,7 +834,6 @@ failed:
               v8::Handle<v8::Value> constructorArgs[3] = { uni::BufferToHandle(nodeBuff), v8::Integer::New(lobLength), v8::Integer::New(0) };
               v8::Local<v8::Object> v8Buffer = bufferConstructor->NewInstance(3, constructorArgs);
               obj->Set(String::New(returnParam.c_str()), v8Buffer);
-              delete [] buffer;
               break;
             }
           case OutParam::OCCIDATE:
