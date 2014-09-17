@@ -3,6 +3,8 @@
 #include "connection.h"
 #include "outParam.h"
 #include <iostream>
+#include <string.h>
+#include <cmath>
 using namespace std;
 
 ExecuteBaton::ExecuteBaton(Connection* connection, const char* sql, v8::Local<v8::Array>* values, v8::Handle<v8::Function>* callback) {
@@ -44,6 +46,18 @@ void ExecuteBaton::ResetValues() {
         break;
       case VALUE_TYPE_TIMESTAMP:
         delete (oracle::occi::Timestamp*)val->value;
+        break;
+      case VALUE_TYPE_ARRAY:
+        arrayParam_t* arrParam = (arrayParam_t*)val->value;
+        if (arrParam->value != NULL && arrParam->elementsType == oracle::occi::OCCI_SQLT_STR)
+          delete (char*)arrParam->value;
+        else if (arrParam->value != NULL && arrParam->elementsType == oracle::occi::OCCI_SQLT_NUM)
+          delete (char*)arrParam->value;
+		
+        if (arrParam->elementLength != NULL)
+          delete arrParam->elementLength;
+
+        delete (arrayParam_t*)val->value;
         break;
     }
     delete val;
@@ -136,6 +150,15 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
       baton->values.push_back(value);
     }
 
+    // array
+    else if (val->IsArray()) {
+      value->type = VALUE_TYPE_ARRAY;
+      Local<Array> arr = Local<Array>::Cast(val);
+      value->value = new arrayParam_t();
+      GetVectorParam(baton, (arrayParam_t*)value->value, arr);
+      baton->values.push_back(value);
+    }
+
     // output
     else if(val->IsObject() && val->ToObject()->FindInstanceInPrototypeChain(uni::Deref(OutParam::constructorTemplate)) != v8::Null()) {
       OutParam* op = node::ObjectWrap::Unwrap<OutParam>(val->ToObject());
@@ -161,6 +184,111 @@ void ExecuteBaton::CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* 
       baton->error = new std::string(message.str());
       return;
     }
+  }
+}
 
+void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, arrayParam_t* arrParam, Local<Array> arr) {
+  // In case the array is empty just initialize the fields as we would need something in Connection::SetValuesOnStatement
+  if (arr->Length() < 1) {
+    arrParam->value = new int[0];
+    arrParam->collectionLength = 0;
+    arrParam->elementsSize = 0;
+    arrParam->elementLength = new ub2[0];
+    arrParam->elementsType = oracle::occi::OCCIINT;
+    return;
+  }
+  
+  // Next we create the array buffer that will be used later as the value for the param (in Connection::SetValuesOnStatement)
+  // The array type will be derived from the type of the first element.
+  Local<Value> val = arr->Get(0);
+
+  // String array
+  if (val->IsString()) {
+    arrParam->elementsType = oracle::occi::OCCI_SQLT_STR;
+
+    // Find the longest string, this is necessary in order to create a buffer later.
+    int longestString = 0;
+    for(unsigned int i = 0; i < arr->Length(); i++) {
+    Local<Value> currVal = arr->Get(i);
+    if (currVal->ToString()->Utf8Length() > longestString)
+      longestString = currVal->ToString()->Utf8Length();
+    }
+
+    // Add 1 for '\0'
+    ++longestString;
+
+    // Create a long char* that will hold the entire array, it is important to create a FIXED SIZE array,
+    // meaning all strings have the same allocated length.
+    char* strArr = new char[arr->Length() * longestString];
+    arrParam->elementLength = new ub2[arr->Length()];
+
+    // loop thru the arr and copy the strings into the strArr
+    int bytesWritten = 0;
+    for(unsigned int i = 0; i < arr->Length(); i++) {
+      Local<Value> currVal = arr->Get(i);
+      if(!currVal->IsString()) {
+        std::ostringstream message;
+        message << "Input array has object with invalid type at index " << i << ", all object must be of type 'string' which is the type of the first element";
+        baton->error = new std::string(message.str());
+        return;
+      }
+            
+      String::Utf8Value utfStr(currVal);
+									
+      // Copy this string onto the strArr (we put \0 in the beginning as this is what strcat expects).
+      strArr[bytesWritten] = '\0';
+      strncat(strArr + bytesWritten, *utfStr, longestString);
+      bytesWritten += longestString;
+									
+      // Set the length of this element, add +1 for the '\0'
+      arrParam->elementLength[i] = utfStr.length() + 1;
+    }
+
+    arrParam->value = strArr;
+    arrParam->collectionLength = arr->Length();
+    arrParam->elementsSize = longestString;
+  }
+
+  // Integer array.
+  else if (val->IsNumber()) {
+    arrParam->elementsType = oracle::occi::OCCI_SQLT_NUM;
+	
+    // Allocate memory for the numbers array, Number in Oracle is 21 bytes
+    unsigned char* numArr = new unsigned char[arr->Length() * 21];
+    arrParam->elementLength = new ub2[arr->Length()];
+
+    for(unsigned int i = 0; i < arr->Length(); i++) {
+      Local<Value> currVal = arr->Get(i);
+      if(!currVal->IsNumber()) {
+        std::ostringstream message;
+        message << "Input array has object with invalid type at index " << i << ", all object must be of type 'number' which is the type of the first element";
+        baton->error = new std::string(message.str());
+        return;
+	  }
+
+      // JS numbers can exceed oracle numbers, make sure this is not the case.
+      double d = currVal->ToNumber()->Value();
+      if (d > 9.99999999999999999999999999999999999999*std::pow(10, 125) || d < -9.99999999999999999999999999999999999999*std::pow(10, 125)) {
+        std::ostringstream message;
+        message << "Input array has number that is out of the range of Oracle numbers, check the number at index " << i;
+        baton->error = new std::string(message.str());
+        return;
+      }
+	  
+      // Convert the JS number into Oracle Number and get its bytes representation
+      oracle::occi::Number n = d;
+      oracle::occi::Bytes b = n.toBytes();
+      arrParam->elementLength[i] = b.length ();
+      b.getBytes(&numArr[i*21], b.length());
+    }
+
+    arrParam->value = numArr;
+    arrParam->collectionLength = arr->Length();
+    arrParam->elementsSize = 21;
+  }
+
+  // Unsupported type
+  else {
+    baton->error = new std::string("The type of the first element in the input array is not supported");
   }
 }

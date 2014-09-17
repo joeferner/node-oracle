@@ -23,7 +23,8 @@ enum {
   VALUE_TYPE_DATE = 5,
   VALUE_TYPE_TIMESTAMP = 6,
   VALUE_TYPE_CLOB = 7,
-  VALUE_TYPE_BLOB = 8
+  VALUE_TYPE_BLOB = 8,
+  VALUE_TYPE_ARRAY = 9
 };
 
 struct column_t {
@@ -39,6 +40,15 @@ struct row_t {
 struct value_t {
   int type;
   void* value;
+};
+
+struct arrayParam_t {
+  // This will hold the info needed for binding array values
+  void* value;  
+  ub4 collectionLength;
+  sb4 elementsSize; // The size of each element in the array
+  ub2* elementLength; //  An array that holds the actual length of each element in the array (in case of strings)
+  oracle::occi::Type elementsType;
 };
 
 struct output_t {
@@ -77,6 +87,7 @@ public:
   int updateCount;
 
   static void CopyValuesToBaton(ExecuteBaton* baton, v8::Local<v8::Array>* values);
+  static void GetVectorParam(ExecuteBaton* baton, arrayParam_t *value, v8::Local<v8::Array> arr);
 };
 
 #endif
