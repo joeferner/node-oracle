@@ -199,6 +199,24 @@ exports['IntegrationTest'] = nodeunit.testCase({
       });
   },
 
+  "prepare statement": function(test) {
+    var self = this;
+    var stmt = self.connection.prepare("INSERT INTO person (name) VALUES (:1)");
+    stmt.execute(["Bill O'Neil"], function(err, count) {
+      if(err) { console.error(err); return; }
+      stmt.execute(["Bob Johnson"], function(err, count) {
+        if(err) { console.error(err); return; }
+        self.connection.execute("SELECT * FROM person WHERE name = :1", ["Bill O'Neil"], function(err, results) {
+          if(err) { console.error(err); return; }
+          //console.log(results);
+          test.equal(results.length, 1);
+          test.equal(results[0]['NAME'], "Bill O'Neil");
+          test.done();
+        });
+      });
+    });
+  },
+
   "utf8_chars_in_query": function(test) {
     var self = this,
         cyrillicString = "тест";
