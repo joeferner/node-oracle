@@ -268,7 +268,7 @@ void ExecuteBaton::GetVectorParam(ExecuteBaton* baton, arrayParam_t* arrParam, L
 
       // JS numbers can exceed oracle numbers, make sure this is not the case.
       double d = currVal->ToNumber()->Value();
-      if (d > 9.99999999999999999999999999999999999999*std::pow(10, 125) || d < -9.99999999999999999999999999999999999999*std::pow(10, 125)) {
+      if (d > 9.99999999999999999999999999999999999999*std::pow(double(10), double(125)) || d < -9.99999999999999999999999999999999999999*std::pow(double(10), double(125))) {
         std::ostringstream message;
         message << "Input array has number that is out of the range of Oracle numbers, check the number at index " << i;
         baton->error = new std::string(message.str());

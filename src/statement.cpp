@@ -45,6 +45,8 @@ uni::CallbackType Statement::Execute(const uni::FunctionCallbackInfo& args) {
   Statement* statement = ObjectWrap::Unwrap<Statement>(args.This());
   StatementBaton* baton = statement->m_baton;
 
+  statement->Ref();
+
   REQ_ARRAY_ARG(0, values);
   REQ_FUN_ARG(1, callback);
   uni::Reset(baton->callback, callback);
@@ -61,7 +63,7 @@ uni::CallbackType Statement::Execute(const uni::FunctionCallbackInfo& args) {
   baton->busy = true;
 
   uv_work_t* req = new uv_work_t();
-  req->data = baton;
+  req->data = statement;
   uv_queue_work(uv_default_loop(), req, EIO_Execute, (uv_after_work_cb)EIO_AfterExecute);
   baton->connection->Ref();
 
@@ -69,7 +71,8 @@ uni::CallbackType Statement::Execute(const uni::FunctionCallbackInfo& args) {
 }
 
 void Statement::EIO_Execute(uv_work_t* req) {
-  StatementBaton* baton = static_cast<StatementBaton*>(req->data);
+  Statement* statement = static_cast<Statement*>(req->data);
+  StatementBaton* baton = statement->m_baton;
 
   if (!baton->connection->getConnection()) {
     baton->error = new std::string("Connection already closed");
@@ -84,7 +87,8 @@ void Statement::EIO_Execute(uv_work_t* req) {
 
 void Statement::EIO_AfterExecute(uv_work_t* req, int status) {
   UNI_SCOPE(scope);
-  StatementBaton* baton = static_cast<StatementBaton*>(req->data);
+  Statement* statement = static_cast<Statement*>(req->data);
+  StatementBaton* baton = statement->m_baton;
 
   baton->busy = false;
   baton->connection->Unref();
@@ -104,5 +108,6 @@ void Statement::EIO_AfterExecute(uv_work_t* req, int status) {
 
   // invoke callback at the very end because callback may re-enter execute.
   node::MakeCallback(Context::GetCurrent()->Global(), cb, 2, argv);
+  statement->Unref();
 }
 
