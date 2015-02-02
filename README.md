@@ -1,3 +1,5 @@
+# This library is not maintained. Oracle has made there own [driver](https://github.com/oracle/node-oracledb).
+
 # Oracle driver for Node.js
 
 A driver to connect to an Oracle database from node.js, leveraging the "Oracle C++ Call Interface" (OCCI)
