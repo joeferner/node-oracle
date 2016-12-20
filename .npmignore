@@ -4,6 +4,4 @@
 pre_install_check.sh
 .npmignore
 INSTALL.md
-binding.gyp
 tests-settings.json
-
